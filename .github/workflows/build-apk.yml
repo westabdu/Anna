@@ -115,26 +115,13 @@ jobs:
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses
 
-      - name: Build APK (Hard Reset Mode)
-        run: |
-          # 1. HER ŞEYİ AMA HER ŞEYİ FİZİKSEL OLARAK SİL
-          rm -rf *
+      - name: Build APK (Anka Kuşu Modu)
+        run: |          
+          # 1. SADECE RESİM VE GEREKSİZ DOSYALARI SİL (0x89'u engellemek için)
+          # Kodları (py, txt, toml) koruyoruz, geri kalan her şeyi siliyoruz.
+          find . -type f ! -name '*.py' ! -name '*.txt' ! -name '*.toml' ! -name '*.yml' ! -name '.env' -delete
           
-          # 2. SADECE GEREKLİ KODU SIFIRDAN OLUŞTUR (Dosya bozuksa bile burada düzelecek)
-          # Not: main.py içeriğini buraya yapıştırmıyoruz, sadece mevcut dosyayı 
-          # terminal üzerinden temiz bir UTF-8 dosyasına dönüştürüyoruz.
-          cat << 'EOF' > requirements.txt
-          flet==0.22.0
-          numpy==1.26.4
-          opencv-python-headless==4.9.0.80
-          mediapipe
-          easyocr
-          pytesseract
-          pyzbar
-          googletrans==3.1.0a0
-          EOF
-
-          # 3. KOTLIN YAMASI
+          # 2. KOTLIN YAMASI (Arka Planda)
           while true; do
             ALL_GRADLES=$(find /tmp -name "build.gradle" 2>/dev/null)
             if [ ! -z "$ALL_GRADLES" ]; then
@@ -146,9 +133,10 @@ jobs:
             sleep 1
           done &
 
-          # 4. BUİLD
-          # Dosya bozulmalarını önlemek için --no-cache kullanıyoruz
-          flet build apk --verbose
+          # 3. BUİLD (Artık main.py yerinde duruyor!)
+          flet build apk --verbose \
+            --build-number ${{ github.run_number }} \
+            --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
             
       - name: Upload APK
         uses: actions/upload-artifact@v4
