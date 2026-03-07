@@ -115,19 +115,9 @@ jobs:
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses
 
-      - name: Build APK (Ultimate Isolation Mode)
-        run: |
-          # 1. TERTEMİZ BİR ÇALIŞMA ALANI OLUŞTUR
-          mkdir build_area
-          
-          # 2. SADECE GEREKLİ KOD DOSYALARINI TAŞI (Binary'leri asla alma!)
-          # .py, .txt, .toml ve .env dışındaki her şeyi dışarıda bırakıyoruz
-          cp *.py build_area/ 2>/dev/null || true
-          cp *.txt build_area/ 2>/dev/null || true
-          cp *.toml build_area/ 2>/dev/null || true
-          cp .env build_area/ 2>/dev/null || true
-          
-          # 3. KOTLIN YAMASINI BAŞLAT (Arka Planda)
+      - name: Build APK (Son Vuruş)
+        run: |          
+          # 1. KOTLIN YAMASINI BAŞLAT (Arka Planda)
           while true; do
             ALL_GRADLES=$(find /tmp -name "build.gradle" 2>/dev/null)
             if [ ! -z "$ALL_GRADLES" ]; then
@@ -139,14 +129,12 @@ jobs:
             sleep 1
           done &
 
-          # 4. BUİLD'İ YENİ KLASÖR İÇİNDE TETİKLE
-          # Artık Flet'in etrafında çarpabileceği hiçbir .hash, .jpg veya log yok!
-          cd build_area
+          # 2. BUİLD ALMA (Hatalı Parametre Silindi!)
+          # Flet, Python paketlerini otomatik olarak requirements.txt'den alacak.
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
-            --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}" \
-            --include-packages numpy,opencv-python-headless,mediapipe,easyocr,pytesseract,pyzbar,googletrans
-          
+            --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
+            
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
