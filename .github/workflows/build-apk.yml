@@ -115,9 +115,13 @@ jobs:
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses
 
-      - name: Build APK (Son Vuruş)
+      - name: Build APK (Nuclear Cleanup)
         run: |          
-          # 1. KOTLIN YAMASINI BAŞLAT (Arka Planda)
+          # 1. HER ŞEYİ SİL, SADECE KODLARI TUT
+          # Bu komut .py, .txt, .toml ve .yml dışındaki HER ŞEYİ (resimler dahil) fiziksel olarak makineden siler.
+          find . -type f ! -name '*.py' ! -name '*.txt' ! -name '*.toml' ! -name '*.yml' ! -name '.env' -delete
+          
+          # 2. KOTLIN YAMASI
           while true; do
             ALL_GRADLES=$(find /tmp -name "build.gradle" 2>/dev/null)
             if [ ! -z "$ALL_GRADLES" ]; then
@@ -129,8 +133,7 @@ jobs:
             sleep 1
           done &
 
-          # 2. BUİLD ALMA (Hatalı Parametre Silindi!)
-          # Flet, Python paketlerini otomatik olarak requirements.txt'den alacak.
+          # 3. SAF BUİLD
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
