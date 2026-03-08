@@ -85,7 +85,7 @@ jobs:
           yes | flutter doctor --android-licenses
           flutter config --no-analytics
 
-      - name: Final Build (Anka Kuşu - Zorla NumPy Yükleme)
+      - name: Final Build (Anka Kuşu - Python 3.12)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -120,31 +120,36 @@ jobs:
             sleep 1
           done &
 
-          # 3. NUMPY ZORLAMA OPERASYONU (3.12 Ayarı)
-          rm -rf ~/.cache/pip
-          rm -rf /tmp/pip-*
-          mkdir -p /tmp/numpy-wheel
-          
-          # Python 3.12 için numpy wheel indir
-          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.12 --dest /tmp/numpy-wheel numpy==1.26.4
-          
-          # 4. KRİTİK: Pip konfigürasyonu
-          mkdir -p ~/.pip
-          cat > ~/.pip/pip.conf << EOF
+          # 3. CRITICAL: Pip konfigürasyonunu serious_python'ın göreceği yere koy
+          mkdir -p /tmp/pip-conf
+          cat > /tmp/pip-conf/pip.conf << 'EOF'
           [global]
           find-links = /tmp/numpy-wheel
           no-index = false
           extra-index-url = https://pypi.flet.dev
           trusted-host = pypi.flet.dev
           EOF
-          
-          # 5. Gereksinimler dosyası
+
+          # 4. NUMPY ZORLAMA OPERASYONU (Python 3.12)
+          rm -rf ~/.cache/pip
+          rm -rf /tmp/pip-*
+          mkdir -p /tmp/numpy-wheel
+
+          # Python 3.12 için numpy wheel indir
+          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.12 --dest /tmp/numpy-wheel numpy==1.26.4
+
+          # 5. SERIOUS_PYTHON'A KONFİGÜRASYONU GÖSTER (EN KRİTİK!)
+          export PIP_CONFIG_FILE=/tmp/pip-conf/pip.conf
+          export PIP_FIND_LINKS=/tmp/numpy-wheel
+          export PIP_EXTRA_INDEX_URL=https://pypi.flet.dev
+
+          # 6. Gereksinimler dosyası
           echo "numpy==1.26.4" > requirements.txt
-          
-          # 6. ANA BUILD KOMUTU
+
+          # 7. ANA BUILD KOMUTU
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
-            --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}" \
+            --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
