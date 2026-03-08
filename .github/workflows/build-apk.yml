@@ -70,20 +70,29 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (NumPy Tamam, Kotlin & Wakelock Fix)
+      - name: Final Build (Zırhlı Paket - Her Şey Dahil Fix)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. KOTLIN, SDK VE WAKELOCK YAMASI (Pusu Modu)
+          # 1. ÖNDEN MÜDAHALE (Pub-Cache ve SDK Hazırlığı)
+          echo "Eklentiler indiriliyor ve yamalanıyor..."
+          flutter pub cache add wakelock_plus
+          flutter pub cache add flutter_plugin_android_lifecycle
+          
+          # Pub-cache içindeki sinsi 'flutter.compileSdkVersion' yazılarını 35 ile değiştir
+          find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.compileSdkVersion/35/g' {} + 2>/dev/null || true
+          find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.targetSdkVersion/35/g' {} + 2>/dev/null || true
+          find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' {} + 2>/dev/null || true
+
+          # 2. PUSU MODU (Arka Planda /tmp Klasörünü İzle)
           while true; do
-            # SADECE SETTINGS.GRADLE DEĞİL, ROOT BUILD.GRADLE'I DA BULALIM
             ROOT_BUILD=$(find /tmp -name "build.gradle" -path "*/android/build.gradle" 2>/dev/null | head -1)
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
 
             if [ ! -z "$SETTINGS_GRADLE" ]; then
-              # Kotlin versiyonunu 2.0.21'e zorla (Eski versiyon varsa da değiştirir)
+              # Kotlin versiyonunu 2.0.21'e zorla
               if grep -q "org.jetbrains.kotlin.android" "$SETTINGS_GRADLE"; then
                 sed -i 's/version "[^"]*"/version "2.0.21"/g' "$SETTINGS_GRADLE"
               else
@@ -97,14 +106,8 @@ jobs:
                 sed -i '/buildscript {/a \    ext.kotlin_version = "2.0.21"' "$ROOT_BUILD"
               fi
             fi
-
-            # pub-cache içindeki sinsi "flutter.compileSdkVersion" hatasını eziyoruz
-            if [ -d "/home/runner/.pub-cache" ]; then
-              find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.compileSdkVersion/35/g' {} + 2>/dev/null || true
-              find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.targetSdkVersion/35/g' {} + 2>/dev/null || true
-            fi
             
-            # Ana build dosyası oluştuğunda döngüyü kır
+            # Ana build dosyası oluştuğunda kısa bir bekleme ve çıkış
             APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
             if [ ! -z "$APP_BUILD" ]; then
               sleep 5
@@ -113,7 +116,7 @@ jobs:
             sleep 1
           done &
 
-          # 2. CRITICAL: Pip konfigürasyonu - SADECE Flet'in deposunu kullan
+          # 3. PIP VE NUMPY YAPILANDIRMASI
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << EOF
           [global]
@@ -121,24 +124,25 @@ jobs:
           trusted-host = pypi.flet.dev
           EOF
 
-          # 3. Gereksiz paketleri kaldır, sadece flet-embed bırak
+          #requirements.txt
           cat > requirements.txt << EOF
           flet-embed==0.24.1
           EOF
 
-          # 4. Android için önceden derlenmiş NumPy'i indir ve manuel ekle
+          # NumPy Wheels (ARM64 ve diğerleri)
           mkdir -p ./libs
           pip download --only-binary :all: --platform manylinux2014_aarch64 --python-version 3.12 --dest ./libs numpy==1.26.4 || true
           pip download --only-binary :all: --platform manylinux2014_armv7l --python-version 3.12 --dest ./libs numpy==1.26.4 || true
           pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.12 --dest ./libs numpy==1.26.4 || true
 
-          # 5. SERIOUS_PYTHON_CONFIG ile Android için ek ayarlar
+          # 4. ANDROID SDK LİSANSLARI VE NDK AYARI
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-          # 6. Build komutu
+          # 5. FİNAL BUILD
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
-            --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
+            --build-version "0.4.${{ github.run_number }}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
