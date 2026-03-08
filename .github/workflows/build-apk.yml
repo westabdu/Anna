@@ -47,25 +47,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1-mesa-glx tesseract-ocr tesseract-ocr-tur libzbar0 build-essential
 
-      - name: Install Flet (Stabil Sürüm Sabitleme)
+      - name: Install Flet (Stabil)
         run: |
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Accept Android Licenses
-        run: |
-          yes | flutter doctor --android-licenses
-          flutter config --no-analytics
-
-      - name: Final Build (Gece Operasyonu - Zafer)
+      - name: Final Build (Gece Bitmeden Zafer)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
-          PIP_CACHE_DIR: /tmp/pip-cache
-          TMPDIR: /tmp
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. KOTLIN VE GRADLE YAMASI
+          # 1. KOTLIN VE GRADLE YAMASI (Geri planda pusuya yatıyoruz)
           while true; do
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ]; then
@@ -75,45 +68,25 @@ jobs:
             sleep 1
           done &
 
-          while true; do
-            ALL_GRADLES=$(find /tmp -name "*.gradle" 2>/dev/null)
-            if [ ! -z "$ALL_GRADLES" ]; then
-              for gradle in $ALL_GRADLES; do
-                sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.24"/g' "$gradle" 2>/dev/null
-                if [[ "$gradle" == *"build.gradle"* ]] && grep -q "android {" "$gradle"; then
-                  sed -i '/android {/a \    packagingOptions { doNotStrip "**/*.so"; pickFirst "**/*.so" }' "$gradle"
-                  sed -i '/android {/a \    aaptOptions { noCompress "so", "zip", "gz", "pyc", "ttf", "otf", "tflite" }' "$gradle"
-                  sed -i 's/compileSdk = .*/compileSdk = 34/g' "$gradle" 2>/dev/null
-                  sed -i 's/targetSdk = .*/targetSdk = 34/g' "$gradle" 2>/dev/null
-                fi
-              done
-              break
-            fi
-            sleep 1
-          done &
-
-          # 2. KRİTİK: Pip konfigürasyonu
-          mkdir -p /tmp/pip-conf
-          cat > /tmp/pip-conf/pip.conf << 'EOF'
-          [global]
-          find-links = /tmp/numpy-wheel
-          no-index = false
-          extra-index-url = https://pypi.flet.dev
-          trusted-host = pypi.flet.dev
-          EOF
-
-          # 3. NUMPY ZORLAMA OPERASYONU
-          rm -rf ~/.cache/pip
-          rm -rf /tmp/pip-*
+          # 2. NUMPY HAZIRLIĞI
           mkdir -p /tmp/numpy-wheel
           pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 --dest /tmp/numpy-wheel numpy==1.26.4
 
-          export PIP_CONFIG_FILE=/tmp/pip-conf/pip.conf
-          export PIP_FIND_LINKS=/tmp/numpy-wheel
-          export PIP_EXTRA_INDEX_URL=https://pypi.flet.dev
+          # 3. GLOBAL PIP KONFİGÜRASYONU (HERKESİ BAĞLAYAN KRİTİK NOKTA)
+          mkdir -p ~/.config/pip
+          mkdir -p ~/.pip
+          cat > ~/.config/pip/pip.conf << 'EOF'
+          [global]
+          find-links = /tmp/numpy-wheel
+          extra-index-url = https://pypi.flet.dev
+          trusted-host = pypi.flet.dev
+          EOF
+          cp ~/.config/pip/pip.conf ~/.pip/pip.conf
+
+          # 4. PROJE DOSYASINI HAZIRLA
           echo "numpy==1.26.4" > requirements.txt
 
-          # 4. ANA BUILD KOMUTU (SESSİZCE VE ZORLA)
+          # 5. ANA BUILD KOMUTU
           yes | flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
