@@ -30,7 +30,7 @@ jobs:
           python-version: '3.11'
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -42,17 +42,23 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # Android SDK'yı kur - HAZIR ACTION KULLAN!
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-33 build-tools;33.0.0'
+
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx tesseract-ocr tesseract-ocr-tur libzbar0 build-essential libgtk-3-dev
+          sudo apt-get install -y libgl1-mesa-glx tesseract-ocr tesseract-ocr-tur libzbar0 build-essential
 
       - name: Install Flet
         run: |
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Son Kale)
+      - name: Final Build (Geceyi Bitiren Hamle)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -68,12 +74,7 @@ jobs:
             sleep 1
           done &
 
-          # 2. ANDROID SDK KURULUMU
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
-
-          # 3. NUMPY ZORLAMA - DOĞRU PLATFORM İLE!
-          # manylinux2014_x86_64 platformunu kullan - bu serious_python'ın beklediği format!
+          # 2. NUMPY - DOĞRU PLATFORM İLE İNDİR
           mkdir -p ./libs
           pip download \
             --only-binary :all: \
@@ -82,12 +83,7 @@ jobs:
             --dest ./libs \
             numpy==1.26.4
 
-          # İndirilen wheel'in adını al
-          WHEEL_PATH=$(ls ./libs/numpy*.whl | head -1)
-          echo "İndirilen wheel: $WHEEL_PATH"
-
-          # 4. requirements.txt - PYPI STANDARD FORMATINDA!
-          # Bu formatta yol değil, paket adı olmalı!
+          # 3. requirements.txt
           cat > requirements.txt << EOF
           numpy==1.26.4
           opencv-python-headless==4.9.0.80
@@ -111,7 +107,7 @@ jobs:
           googletrans
           EOF
 
-          # 5. Pip konfigürasyonu - wheel'i bulsun diye
+          # 4. Pip konfigürasyonu
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << EOF
           [global]
@@ -120,8 +116,8 @@ jobs:
           trusted-host = pypi.flet.dev
           EOF
 
-          # 6. ANA BUILD KOMUTU
-          yes | flet build apk --verbose \
+          # 5. ANA BUILD KOMUTU
+          flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
 
