@@ -40,7 +40,8 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 tesseract-ocr tesseract-ocr-tur libzbar0 iconv
+          # iconv zaten yüklüdür, o yüzden listeden sildik.
+          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 tesseract-ocr tesseract-ocr-tur libzbar0
 
       - name: Prepare Workspace & Handle 0x89
         env:
