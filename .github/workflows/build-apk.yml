@@ -134,11 +134,11 @@ jobs:
           # Gereksinimler dosyası
           echo "numpy==1.26.4" > requirements.txt
 
-          # 4. ANA BUILD KOMUTU (Hatalı build-name kaldırıldı)
+          # 4. ANA BUILD KOMUTU (Virgüller kalktı, boşluk geldi)
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}" \
-            --include-packages opencv-python-headless,mediapipe,easyocr
+            --include-packages opencv-python-headless mediapipe easyocr
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
