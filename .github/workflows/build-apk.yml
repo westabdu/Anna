@@ -70,31 +70,44 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (NumPy Tamam, Wakelock Çözüldü)
+      - name: Final Build (NumPy Tamam, Kotlin & Wakelock Fix)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. KOTLIN VE WAKELOCK YAMASI
+          # 1. KOTLIN, SDK VE WAKELOCK YAMASI (Pusu Modu)
           while true; do
+            # SADECE SETTINGS.GRADLE DEĞİL, ROOT BUILD.GRADLE'I DA BULALIM
+            ROOT_BUILD=$(find /tmp -name "build.gradle" -path "*/android/build.gradle" 2>/dev/null | head -1)
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
-            if [ ! -z "$SETTINGS_GRADLE" ] && ! grep -q "org.jetbrains.kotlin.android" "$SETTINGS_GRADLE"; then
-              sed -i 's/plugins {/plugins {\n    id "org.jetbrains.kotlin.android" version "1.9.24" apply false/g' "$SETTINGS_GRADLE" 2>/dev/null
+
+            if [ ! -z "$SETTINGS_GRADLE" ]; then
+              # Kotlin versiyonunu 2.0.21'e zorla (Eski versiyon varsa da değiştirir)
+              if grep -q "org.jetbrains.kotlin.android" "$SETTINGS_GRADLE"; then
+                sed -i 's/version "[^"]*"/version "2.0.21"/g' "$SETTINGS_GRADLE"
+              else
+                sed -i 's/plugins {/plugins {\n    id "org.jetbrains.kotlin.android" version "2.0.21" apply false/g' "$SETTINGS_GRADLE"
+              fi
             fi
 
-            # KRİTİK NOKTA: pub-cache içindeki eklentilerde çıkan "unknown property 'flutter'" hatasını eziyoruz
+            if [ ! -z "$ROOT_BUILD" ]; then
+              # ext.kotlin_version tanımlayalım
+              if ! grep -q "kotlin_version =" "$ROOT_BUILD"; then
+                sed -i '/buildscript {/a \    ext.kotlin_version = "2.0.21"' "$ROOT_BUILD"
+              fi
+            fi
+
+            # pub-cache içindeki sinsi "flutter.compileSdkVersion" hatasını eziyoruz
             if [ -d "/home/runner/.pub-cache" ]; then
               find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.compileSdkVersion/35/g' {} + 2>/dev/null || true
               find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.targetSdkVersion/35/g' {} + 2>/dev/null || true
-              find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.minSdkVersion/21/g' {} + 2>/dev/null || true
             fi
             
-            # Flet'in asıl klasörü oluştuğunda yamayı son bir kez yapıp döngüyü bitir
+            # Ana build dosyası oluştuğunda döngüyü kır
             APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
             if [ ! -z "$APP_BUILD" ]; then
-              sleep 5 
-              find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.compileSdkVersion/35/g' {} + 2>/dev/null || true
+              sleep 5
               break
             fi
             sleep 1
