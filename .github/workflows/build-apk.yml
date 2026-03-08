@@ -20,7 +20,6 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo docker image prune --all --force
 
@@ -42,11 +41,20 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # Android SDK'yı kur - HAZIR ACTION KULLAN!
+      # Android SDK'yı elle kur (yetki sorunu yok)
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools platforms;android-33 build-tools;33.0.0'
+        run: |
+          mkdir -p $HOME/android-sdk
+          cd $HOME/android-sdk
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
+          unzip -q commandlinetools-linux-12266719_latest.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/* cmdline-tools/latest/ || true
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
       - name: Install System Dependencies
         run: |
@@ -58,13 +66,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Geceyi Bitiren Hamle)
+      - name: Final Build
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. KOTLIN VE GRADLE YAMASI
+          # 1. KOTLIN YAMASI
           while true; do
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ]; then
@@ -74,14 +82,9 @@ jobs:
             sleep 1
           done &
 
-          # 2. NUMPY - DOĞRU PLATFORM İLE İNDİR
+          # 2. NUMPY İNDİR
           mkdir -p ./libs
-          pip download \
-            --only-binary :all: \
-            --platform manylinux2014_x86_64 \
-            --python-version 3.11 \
-            --dest ./libs \
-            numpy==1.26.4
+          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 --dest ./libs numpy==1.26.4
 
           # 3. requirements.txt
           cat > requirements.txt << EOF
@@ -116,7 +119,7 @@ jobs:
           trusted-host = pypi.flet.dev
           EOF
 
-          # 5. ANA BUILD KOMUTU
+          # 5. BUILD
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
