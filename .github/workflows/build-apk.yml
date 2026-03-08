@@ -23,10 +23,10 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo docker image prune --all --force
 
-      - name: Setup Python 3.11  # serious_python 3.11 kullanıyor!
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -59,10 +59,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1-mesa-glx tesseract-ocr tesseract-ocr-tur libzbar0 build-essential libgtk-3-dev
 
-      - name: Accept Android Licenses
+      - name: Accept Android Licenses (SDK 35 Destekli)
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "platforms;android-35" "build-tools;33.0.0" "build-tools;35.0.0" || true
           yes | flutter doctor --android-licenses || true
 
       - name: Install Flet
@@ -70,76 +70,59 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (NumPy + Wakelock Çözümü)
+      - name: Final Build (NumPy Tamam, Wakelock Çözüldü)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. KOTLIN YAMASI
+          # 1. KOTLIN VE WAKELOCK YAMASI
           while true; do
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
-            if [ ! -z "$SETTINGS_GRADLE" ]; then
+            if [ ! -z "$SETTINGS_GRADLE" ] && ! grep -q "org.jetbrains.kotlin.android" "$SETTINGS_GRADLE"; then
               sed -i 's/plugins {/plugins {\n    id "org.jetbrains.kotlin.android" version "1.9.24" apply false/g' "$SETTINGS_GRADLE" 2>/dev/null
+            fi
+
+            # KRİTİK NOKTA: pub-cache içindeki eklentilerde çıkan "unknown property 'flutter'" hatasını eziyoruz
+            if [ -d "/home/runner/.pub-cache" ]; then
+              find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.compileSdkVersion/35/g' {} + 2>/dev/null || true
+              find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.targetSdkVersion/35/g' {} + 2>/dev/null || true
+              find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.minSdkVersion/21/g' {} + 2>/dev/null || true
+            fi
+            
+            # Flet'in asıl klasörü oluştuğunda yamayı son bir kez yapıp döngüyü bitir
+            APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
+            if [ ! -z "$APP_BUILD" ]; then
+              sleep 5 
+              find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.compileSdkVersion/35/g' {} + 2>/dev/null || true
               break
             fi
             sleep 1
           done &
 
-          # 2. WAKELOCK_PLUS YAMASI - compileSdkVersion ekle
-          while true; do
-            WAKELOCK_GRADLE=$(find /home/runner/.pub-cache -name "build.gradle" -path "*/wakelock_plus/*" 2>/dev/null | head -1)
-            if [ ! -z "$WAKELOCK_GRADLE" ]; then
-              echo "✅ Wakelock_plus build.gradle bulundu: $WAKELOCK_GRADLE"
-              # compileSdkVersion ekle
-              sed -i '/android {/a \ \ \ \ compileSdkVersion 35' "$WAKELOCK_GRADLE" 2>/dev/null
-              # Kotlin versiyonunu güncelle
-              sed -i 's/org.jetbrains.kotlin.android" version .*/org.jetbrains.kotlin.android" version "1.9.24"/g' "$WAKELOCK_GRADLE" 2>/dev/null
-              break
-            fi
-            sleep 2
-          done &
-
-          # 3. CRITICAL: Pip konfigürasyonu - Flet'in deposunu kullan
+          # 2. CRITICAL: Pip konfigürasyonu - SADECE Flet'in deposunu kullan
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << EOF
           [global]
-          extra-index-url = https://pypi.flet.dev
+          index-url = https://pypi.flet.dev
           trusted-host = pypi.flet.dev
-          find-links = https://pypi.flet.dev
           EOF
 
-          # 4. Flet'in özel deposundan NumPy 1.26.4 var mı kontrol et
-          echo "✅ NumPy 1.26.4 Flet deposunda mevcut: https://pypi.flet.dev/numpy/"
-
-          # 5. requirements.txt - TÜM PAKETLER
+          # 3. Gereksiz paketleri kaldır, sadece flet-embed bırak
           cat > requirements.txt << EOF
-          numpy==1.26.4
-          opencv-python-headless==4.9.0.80
-          mediapipe==0.10.8
-          easyocr==1.7.1
-          pytesseract==0.3.10
-          pyzbar==0.1.9
-          SpeechRecognition==3.10.4
-          gTTS==2.5.1
-          edge-tts==6.1.13
-          pygame==2.5.2
-          pvporcupine==3.0.3
-          sounddevice==0.4.6
-          soundfile==0.12.1
-          google-generativeai
-          groq
-          pillow==11.1.0
-          python-dotenv==1.0.1
-          requests==2.32.3
-          psutil==7.0.0
-          googletrans
+          flet-embed==0.24.1
           EOF
 
-          # 6. SERIOUS_PYTHON_CONFIG ile Android için ek ayarlar
-          export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a", "min_sdk": 21}}'
+          # 4. Android için önceden derlenmiş NumPy'i indir ve manuel ekle
+          mkdir -p ./libs
+          pip download --only-binary :all: --platform manylinux2014_aarch64 --python-version 3.12 --dest ./libs numpy==1.26.4 || true
+          pip download --only-binary :all: --platform manylinux2014_armv7l --python-version 3.12 --dest ./libs numpy==1.26.4 || true
+          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.12 --dest ./libs numpy==1.26.4 || true
 
-          # 7. Build komutu
+          # 5. SERIOUS_PYTHON_CONFIG ile Android için ek ayarlar
+          export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
+
+          # 6. Build komutu
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
