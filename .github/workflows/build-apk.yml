@@ -37,10 +37,26 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # TÜM DERLEME ARAÇLARINI KUR (NumPy için gerekli!)
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 tesseract-ocr tesseract-ocr-tur libzbar0
+          sudo apt-get install -y \
+            libgl1-mesa-glx \
+            libglib2.0-0 \
+            libsm6 \
+            libxext6 \
+            libxrender-dev \
+            libgomp1 \
+            tesseract-ocr \
+            tesseract-ocr-tur \
+            libzbar0 \
+            build-essential \
+            gfortran \
+            libopenblas-dev \
+            liblapack-dev \
+            pkg-config \
+            python3-dev
 
       - name: Prepare Workspace & Handle 0x89
         env:
@@ -52,14 +68,20 @@ jobs:
           fi
           find . -name "*.pyc" -delete
           find . -name "*.so" -delete
-          find . -maxdepth 1 -type f ! -name '*.py' ! -name '*.txt' ! -name '*.toml' ! -name '*.yml' ! -name '.env' -delete
 
+      # NumPy'ı ÖNCEDEN ve --only-binary ile kur
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          # NumPy'ı önceden kurarak build sistemine hazır hale getiriyoruz
-          pip install --no-cache-dir numpy==1.26.4
-          pip install --no-cache-dir flet==0.22.0 opencv-python-headless==4.9.0.80 googletrans==3.1.0a0
+          
+          # ÖNEMLİ: NumPy'ı pre-built wheel olarak kur (derleme YOK!)
+          pip install --only-binary :all: numpy==1.26.4
+          
+          # Diğer paketler
+          pip install flet==0.22.0
+          pip install opencv-python-headless==4.9.0.80
+          pip install googletrans==4.0.2
+          pip install mediapipe easyocr pytesseract pyzbar SpeechRecognition gTTS edge-tts pygame pvporcupine sounddevice soundfile google-generativeai groq pillow python-dotenv requests psutil
 
       - name: Accept Android Licenses
         run: |
@@ -70,8 +92,10 @@ jobs:
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
-          # NUMPY FIX: Pip'e "sakın derlemeye çalışma, sadece hazır paketleri bul" diyoruz
+          # NumPy derlemesini tamamen devre dışı bırak
           PIP_ONLY_BINARY: ":all:"
+          NPY_BLAS_ORDER: ""
+          NPY_LAPACK_ORDER: ""
         run: |
           # Kotlin Yaması
           while true; do
