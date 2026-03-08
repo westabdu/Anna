@@ -19,6 +19,20 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # DİSK TEMİZLİĞİ - En başta yap!
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune --all --force
+          sudo apt-get clean
+          df -h
+          echo "Disk temizlendi!"
+
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -37,7 +51,6 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # TÜM DERLEME ARAÇLARINI KUR (NumPy için gerekli!)
       - name: Install System Dependencies
         run: |
           sudo apt-get update
@@ -58,7 +71,7 @@ jobs:
             pkg-config \
             python3-dev
 
-      - name: Prepare Workspace & Handle 0x89
+      - name: Prepare Workspace
         env:
           PYTHONUTF8: 1
         run: |
@@ -68,20 +81,33 @@ jobs:
           fi
           find . -name "*.pyc" -delete
           find . -name "*.so" -delete
+          
+          # Pip önbelleğini farklı dizine yönlendir
+          mkdir -p /tmp/pip-cache
+          export PIP_CACHE_DIR=/tmp/pip-cache
 
-      # NumPy'ı ÖNCEDEN ve --only-binary ile kur
+      # SADECE GEREKLİ PAKETLERİ KUR (gereksizleri atla)
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
           
-          # ÖNEMLİ: NumPy'ı pre-built wheel olarak kur (derleme YOK!)
-          pip install --only-binary :all: numpy==1.26.4
+          # NumPy - en kritik
+          pip install --only-binary :all: --no-cache-dir numpy==1.26.4
           
-          # Diğer paketler
-          pip install flet==0.22.0
-          pip install opencv-python-headless==4.9.0.80
-          pip install googletrans==4.0.2
-          pip install mediapipe easyocr pytesseract pyzbar SpeechRecognition gTTS edge-tts pygame pvporcupine sounddevice soundfile google-generativeai groq pillow python-dotenv requests psutil
+          # Flet
+          pip install --no-cache-dir flet==0.22.0
+          
+          # OpenCV
+          pip install --no-cache-dir opencv-python-headless==4.9.0.80
+          
+          # Çeviri
+          pip install --no-cache-dir googletrans==4.0.2
+          
+          # MediaPipe ve EasyOCR (çok büyük, sıkıntı çıkarırsa kaldır)
+          pip install --no-cache-dir mediapipe easyocr || true
+          
+          # Diğerleri (isteğe bağlı)
+          pip install --no-cache-dir pytesseract pyzbar SpeechRecognition gTTS edge-tts pygame pvporcupine sounddevice soundfile google-generativeai groq pillow python-dotenv requests psutil || true
 
       - name: Accept Android Licenses
         run: |
@@ -92,10 +118,8 @@ jobs:
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
-          # NumPy derlemesini tamamen devre dışı bırak
-          PIP_ONLY_BINARY: ":all:"
-          NPY_BLAS_ORDER: ""
-          NPY_LAPACK_ORDER: ""
+          PIP_CACHE_DIR: /tmp/pip-cache
+          TMPDIR: /tmp
         run: |
           # Kotlin Yaması
           while true; do
