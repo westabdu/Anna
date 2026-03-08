@@ -40,21 +40,16 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          # iconv zaten yüklüdür, o yüzden listeden sildik.
           sudo apt-get install -y libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 tesseract-ocr tesseract-ocr-tur libzbar0
 
       - name: Prepare Workspace & Handle 0x89
         env:
-          PYTHONUTF8: 1 # Zorunlu UTF-8 modu
+          PYTHONUTF8: 1
         run: |
-          # 1. requirements.txt Dosyasını UTF-8'e Zorla
           if [ -f requirements.txt ]; then
-            # Dosyayı her ihtimale karşı temizle ve UTF-8 olarak yeniden oluştur
             cat requirements.txt | tr -d '\r' > req_tmp.txt
             mv req_tmp.txt requirements.txt
           fi
-
-          # 2. Sinsi Binary Dosyaları Sil (0x89 Kalkanı)
           find . -name "*.pyc" -delete
           find . -name "*.so" -delete
           find . -maxdepth 1 -type f ! -name '*.py' ! -name '*.txt' ! -name '*.toml' ! -name '*.yml' ! -name '.env' -delete
@@ -75,6 +70,8 @@ jobs:
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
+          # NUMPY FIX: Pip'e "sakın derlemeye çalışma, sadece hazır paketleri bul" diyoruz
+          PIP_ONLY_BINARY: ":all:"
         run: |
           # Kotlin Yaması
           while true; do
@@ -86,7 +83,7 @@ jobs:
             sleep 1
           done &
           
-          # Build komutu - NumPy için --no-cache kullanıyoruz
+          # Build komutu
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
