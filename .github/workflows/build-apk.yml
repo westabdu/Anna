@@ -52,13 +52,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Gece Bitmeden Zafer)
+      - name: Final Build (Geceyi Bitiren Hamle)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. KOTLIN VE GRADLE YAMASI (Geri planda pusuya yatıyoruz)
+          # 1. KOTLIN VE GRADLE YAMASI (Geri planda hazır)
           while true; do
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ]; then
@@ -68,26 +68,19 @@ jobs:
             sleep 1
           done &
 
-          # 2. NUMPY HAZIRLIĞI
-          mkdir -p /tmp/numpy-wheel
-          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 --dest /tmp/numpy-wheel numpy==1.26.4
+          # 2. NUMPY'I PROJENİN KALBİNE YERLEŞTİRME (Pip'i Bypass Ediyoruz)
+          # Pip'in Android için hata verdiği paketleri önceden indirip "vendor" klasörüne açıyoruz.
+          mkdir -p __pypackages__
+          pip install --target=./__pypackages__ --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 numpy==1.26.4
 
-          # 3. GLOBAL PIP KONFİGÜRASYONU (HERKESİ BAĞLAYAN KRİTİK NOKTA)
-          mkdir -p ~/.config/pip
-          mkdir -p ~/.pip
-          cat > ~/.config/pip/pip.conf << 'EOF'
-          [global]
-          find-links = /tmp/numpy-wheel
-          extra-index-url = https://pypi.flet.dev
-          trusted-host = pypi.flet.dev
-          EOF
-          cp ~/.config/pip/pip.conf ~/.pip/pip.conf
+          # 3. FLET'E "BUNLARI KURMA, BEN ZATEN KOYDUM" DİYORUZ
+          # requirements.txt dosyasını boş bırakıyoruz ki Flet Pip'i çalıştırmasın
+          touch requirements.txt
 
-          # 4. PROJE DOSYASINI HAZIRLA
-          echo "numpy==1.26.4" > requirements.txt
-
-          # 5. ANA BUILD KOMUTU
+          # 4. ANA BUILD KOMUTU
+          # --include-packages ile kendi hazırladığımız paket klasörünü içeri alıyoruz
           yes | flet build apk --verbose \
+            --include-packages numpy \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
 
