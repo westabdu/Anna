@@ -8,8 +8,6 @@ on:
         required: false
         default: '0.4'
         type: string
-  push:
-    branches: [ main, master ]
 
 jobs:
   build:
@@ -19,7 +17,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # DİSK TEMİZLİĞİ - En başta yap!
+      # DİSK TEMİZLİĞİ
       - name: Free Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -27,11 +25,8 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           sudo docker image prune --all --force
-          sudo apt-get clean
           df -h
-          echo "Disk temizlendi!"
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -56,42 +51,34 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libgl1-mesa-glx \
-            libglib2.0-0 \
-            libsm6 \
-            libxext6 \
-            libxrender-dev \
-            libgomp1 \
             tesseract-ocr \
             tesseract-ocr-tur \
             libzbar0 \
-            build-essential \
-            gfortran \
-            libopenblas-dev \
-            liblapack-dev \
-            pkg-config \
-            python3-dev
+            build-essential
 
-      - name: Prepare Workspace
-        env:
-          PYTHONUTF8: 1
+      # ÖNEMLİ: Pip konfigürasyonu - Flet'in özel deposunu ekle!
+      - name: Configure pip for Flet packages
         run: |
-          if [ -f requirements.txt ]; then
-            cat requirements.txt | tr -d '\r' > req_tmp.txt
-            mv req_tmp.txt requirements.txt
-          fi
-          find . -name "*.pyc" -delete
-          find . -name "*.so" -delete
+          mkdir -p ~/.pip
+          cat > ~/.pip/pip.conf << EOF
+          [global]
+          extra-index-url = https://pypi.flet.dev
+          trusted-host = pypi.flet.dev
+          EOF
           
-          # Pip önbelleğini farklı dizine yönlendir
-          mkdir -p /tmp/pip-cache
-          export PIP_CACHE_DIR=/tmp/pip-cache
+          # Alternatif olarak environment variable da kullanabiliriz
+          echo "PIP_EXTRA_INDEX_URL=https://pypi.flet.dev" >> $GITHUB_ENV
+          echo "PIP_TRUSTED_HOST=pypi.flet.dev" >> $GITHUB_ENV
 
-      # SADECE GEREKLİ PAKETLERİ KUR (gereksizleri atla)
-      - name: Install Python Dependencies
+      - name: Install Python Dependencies (with Flet's pre-built packages)
+        env:
+          PIP_EXTRA_INDEX_URL: https://pypi.flet.dev
+          PIP_TRUSTED_HOST: pypi.flet.dev
         run: |
           python -m pip install --upgrade pip setuptools wheel
           
-          # NumPy - en kritik
+          # NumPy - Flet'in önceden derlenmiş paketini kullan!
+          # Bu, https://pypi.flet.dev adresinden çekilecek
           pip install --only-binary :all: --no-cache-dir numpy==1.26.4
           
           # Flet
@@ -100,14 +87,11 @@ jobs:
           # OpenCV
           pip install --no-cache-dir opencv-python-headless==4.9.0.80
           
-          # Çeviri
+          # Googletrans
           pip install --no-cache-dir googletrans==4.0.2
           
-          # MediaPipe ve EasyOCR (çok büyük, sıkıntı çıkarırsa kaldır)
-          pip install --no-cache-dir mediapipe easyocr || true
-          
-          # Diğerleri (isteğe bağlı)
-          pip install --no-cache-dir pytesseract pyzbar SpeechRecognition gTTS edge-tts pygame pvporcupine sounddevice soundfile google-generativeai groq pillow python-dotenv requests psutil || true
+          # Diğer paketler
+          pip install --no-cache-dir mediapipe easyocr pytesseract pyzbar SpeechRecognition gTTS edge-tts pygame pvporcupine sounddevice soundfile google-generativeai groq pillow python-dotenv requests psutil
 
       - name: Accept Android Licenses
         run: |
