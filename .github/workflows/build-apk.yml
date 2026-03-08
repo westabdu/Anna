@@ -115,8 +115,9 @@ jobs:
 
           echo "numpy==1.26.4" > requirements.txt
 
-          # 4. ANA BUILD KOMUTU
-          flet build apk --verbose \
+          # 7. ANA BUILD KOMUTU (Soru sormasını engelledik ve yolu gösterdik)
+          yes | flet build apk --verbose \
+            --flutter-path /opt/hostedtoolcache/flutter/stable-3.24.3-x64/bin/flutter \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
 
