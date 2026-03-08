@@ -125,19 +125,27 @@ jobs:
           rm -rf /tmp/pip-*
           mkdir -p /tmp/numpy-wheel
           
-          # BURASI KRİTİK: python-version 3.12 olarak güncellendi
+          # Python 3.12 için numpy wheel indir
           pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.12 --dest /tmp/numpy-wheel numpy==1.26.4
           
-          export PIP_FIND_LINKS=/tmp/numpy-wheel
-          export PIP_NO_INDEX=false
+          # 4. KRİTİK: Pip konfigürasyonu
+          mkdir -p ~/.pip
+          cat > ~/.pip/pip.conf << EOF
+          [global]
+          find-links = /tmp/numpy-wheel
+          no-index = false
+          extra-index-url = https://pypi.flet.dev
+          trusted-host = pypi.flet.dev
+          EOF
           
-          # Gereksinimler dosyası
+          # 5. Gereksinimler dosyası
           echo "numpy==1.26.4" > requirements.txt
-
-          # 4. ANA BUILD KOMUTU (Tireler alt tire yapıldı!)
+          
+          # 6. ANA BUILD KOMUTU
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}" \
+            --include-packages opencv_python_headless mediapipe easyocr
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
