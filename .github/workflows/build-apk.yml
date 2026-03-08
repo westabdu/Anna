@@ -1,8 +1,6 @@
 name: Build ANNA Mobile APK
 
 on:
-  push:
-    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       version:
@@ -18,10 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Python 3.12
+      # Python 3.11 KULLAN (3.12 değil!)
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
           
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -34,64 +33,40 @@ jobs:
         with:
           flutter-version: '3.24.3'
           channel: 'stable'
+          cache: true
+          
+      # ANDROID SDK'yı manuel kur
+      - name: Setup Android SDK
+        run: |
+          mkdir -p $ANDROID_HOME/cmdline-tools/latest
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip -d $ANDROID_HOME/cmdline-tools
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
           
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libgl1-mesa-glx \
-            libglib2.0-0 \
-            libsm6 \
-            libxext6 \
-            libxrender-dev \
-            libgomp1 \
             tesseract-ocr \
             tesseract-ocr-tur \
-            tesseract-ocr-jpn \
-            tesseract-ocr-chi-sim \
-            tesseract-ocr-kor \
             portaudio19-dev \
             libsndfile1 \
             cmake \
             build-essential \
-            gfortran \
-            libopenblas-dev \
-            liblapack-dev \
-            zip \
-            unzip
-
-      - name: Free Disk Space (Disk Temizliği)
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLS_DIRECTORY"
-          docker image prune --all --force
-          echo "Disk temizlendi, yer açıldı!"
+            libgtk-3-dev
       
+      # SADECE requirements.txt'deki paketleri kur
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
           
-          # NUMPY HATASI ÇÖZÜMÜ: Spesifik ve uyumlu bir sürüm kuruyoruz.
-          # OpenCV ve MediaPipe ile çakışmaması için 1.26.4 genellikle en güvenlisidir.
-          pip install numpy==1.26.4
-          
-          # Ağır paketleri sırayla ve headless kuruyoruz
-          pip install opencv-python-headless==4.9.0.80
-          pip install mediapipe
-          pip install easyocr
-          pip install googletrans
-          
-          # Flet ve diğerleri
-          pip install \
-            flet==0.24.0 \
-            python-dotenv requests pillow psutil pytesseract pyzbar \
-            SpeechRecognition gTTS edge-tts pygame pvporcupine \
-            sounddevice soundfile google-generativeai groq
-          
-      - name: Create .env file from secrets
+      - name: Create .env file
         run: |
           cat > .env << EOF
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
@@ -101,40 +76,32 @@ jobs:
           PICOVOICE_ACCESS_KEY=${{ secrets.PICOVOICE_ACCESS_KEY }}
           EOF
           
-      - name: Hard Cleanup (Physical Removal)
-        run: |
-          # Flet'in kafasını karıştıran tüm binary ve gereksiz dosyaları fiziksel olarak siliyoruz
-          rm -rf data ocr __pycache__ .git .github .venv build dist
-          find . -name "*.hash" -type f -delete
-          find . -name "*.jpg" -type f -delete
-          find . -name "*.png" -type f -delete
-          find . -name "*.log" -type f -delete
-          find . -name "*.pyc" -type f -delete
-          echo "Suçlu dosyalar infaz edildi, yol temiz!"aaa
-
+      # Android lisanslarını flutter ile kabul et
       - name: Accept Android Licenses
-        run: yes | flutter doctor --android-licenses
-
-      - name: Build APK (Anka Kuşu Modu)
-        run: |          
+        run: |
+          yes | flutter doctor --android-licenses
+          flutter config --no-analytics
           
-          # 2. KOTLIN YAMASI (Arka Planda)
+      # KOTLIN YAMASI (Arka planda)
+      - name: Build APK with Kotlin patch
+        env:
+          FLUTTER_SUPPRESS_ANALYTICS: true
+        run: |
+          # Kotlin versiyonunu düzelten arka plan süreci
           while true; do
-            ALL_GRADLES=$(find /tmp -name "build.gradle" 2>/dev/null)
-            if [ ! -z "$ALL_GRADLES" ]; then
-              for gradle in $ALL_GRADLES; do
-                sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.24"/g' "$gradle" 2>/dev/null
-              done
+            SETTINGS_GRADLE=$(find . -name "settings.gradle" 2>/dev/null | head -1)
+            if [ ! -z "$SETTINGS_GRADLE" ]; then
+              sed -i 's/plugins {/plugins {\n    id "org.jetbrains.kotlin.android" version "1.9.24" apply false/g' "$SETTINGS_GRADLE" 2>/dev/null
               break
             fi
             sleep 1
           done &
-
-          # 3. BUİLD (Artık main.py yerinde duruyor!)
+          
+          # Ana build işlemi
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
-            
+          
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
