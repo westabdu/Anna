@@ -8,88 +8,69 @@ on:
         required: false
         default: '0.4'
         type: string
+  push:
+    branches: [ main, master ]
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     
     steps:
-      - uses: actions/checkout@v4
-      
-      # Python 3.11 KULLAN (3.12 değil!)
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-          
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.3'
           channel: 'stable'
           cache: true
-          
-      # ANDROID SDK'yı manuel kur
-      - name: Setup Android SDK
-        run: |
-          mkdir -p $ANDROID_HOME/cmdline-tools/latest
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q commandlinetools-linux-11076708_latest.zip -d $ANDROID_HOME/cmdline-tools
-          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          
-      - name: Install system dependencies
+
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libgl1-mesa-glx \
-            tesseract-ocr \
-            tesseract-ocr-tur \
-            portaudio19-dev \
-            libsndfile1 \
-            cmake \
-            build-essential \
-            libgtk-3-dev
-      
-      # SADECE requirements.txt'deki paketleri kur
-      - name: Install Python dependencies
+          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 tesseract-ocr tesseract-ocr-tur libzbar0
+
+      - name: Install Python Dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          
-      - name: Create .env file
-        run: |
-          cat > .env << EOF
-          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-          OPENWEATHER_API_KEY=${{ secrets.OPENWEATHER_API_KEY }}
-          NEWS_API_KEY=${{ secrets.NEWS_API_KEY }}
-          PICOVOICE_ACCESS_KEY=${{ secrets.PICOVOICE_ACCESS_KEY }}
-          EOF
-          
-      # Android lisanslarını flutter ile kabul et
+          python -m pip install --upgrade pip setuptools wheel
+          pip install --no-cache-dir flet==0.22.0 numpy==1.26.4 opencv-python-headless==4.9.0.80 googletrans==3.1.0a0
+          if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
+
       - name: Accept Android Licenses
         run: |
           yes | flutter doctor --android-licenses
           flutter config --no-analytics
-          
-      # KOTLIN YAMASI (Arka planda)
-      - name: Build APK with Kotlin patch
+
+      - name: Prepare Workspace & Build APK
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
         run: |
-          # Kotlin versiyonunu düzelten arka plan süreci
+          # 1. TEMİZLİK: 0x89 hatasına sebep olan sinsi dosyaları (PNG vb.) temizle
+          # Sadece kod dosyalarını koru, geri kalan her şeyi sil.
+          find . -maxdepth 1 -type f ! -name '*.py' ! -name '*.txt' ! -name '*.toml' ! -name '*.yml' ! -name '.env' -delete
+          
+          # 2. DOSYA KONTROLÜ: main.py orada mı?
+          if [ ! -f "main.py" ]; then
+            echo "HATA: main.py dosyası kök dizinde bulunamadı!"
+            ls -R
+            exit 1
+          fi
+
+          # 3. KOTLIN YAMASI (Arka planda çalışır)
           while true; do
-            SETTINGS_GRADLE=$(find . -name "settings.gradle" 2>/dev/null | head -1)
+            SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ]; then
               sed -i 's/plugins {/plugins {\n    id "org.jetbrains.kotlin.android" version "1.9.24" apply false/g' "$SETTINGS_GRADLE" 2>/dev/null
               break
@@ -97,14 +78,13 @@ jobs:
             sleep 1
           done &
           
-          # Ana build işlemi
+          # 4. ANA BUILD İŞLEMİ
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
-          
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ANNA-Mobile-v${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}
+          name: anna-mobile-release
           path: build/apk/*.apk
-          retention-days: 30
