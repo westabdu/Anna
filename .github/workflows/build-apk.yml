@@ -85,14 +85,14 @@ jobs:
           yes | flutter doctor --android-licenses
           flutter config --no-analytics
 
-      - name: Final Build (Anka Kuşu)
+      - name: Final Build (Anka Kuşu - Zorla NumPy Yükleme)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           PIP_CACHE_DIR: /tmp/pip-cache
           TMPDIR: /tmp
         run: |
-          # Kotlin Yaması
+          # 1. KOTLIN YAMASI (Pusu 1)
           while true; do
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ]; then
@@ -102,10 +102,7 @@ jobs:
             sleep 1
           done &
 
-          # Gereksinimler
-          echo "numpy==1.26.4" > requirements.txt
-
-          # GERİLLA YAMA V17 (Arka plan müdahalesi)
+          # 2. GERİLLA YAMA V17 (Pusu 2 - Gradle Müdahalesi)
           while true; do
             ALL_GRADLES=$(find /tmp -name "*.gradle" 2>/dev/null)
             if [ ! -z "$ALL_GRADLES" ]; then
@@ -122,11 +119,27 @@ jobs:
             fi
             sleep 1
           done &
+
+          # 3. NUMPY ZORLAMA OPERASYONU
+          rm -rf ~/.cache/pip
+          rm -rf /tmp/pip-*
+          mkdir -p /tmp/numpy-wheel
           
-          # Build komutu
+          # NumPy 1.26.4 wheel'ini hazırla
+          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 --dest /tmp/numpy-wheel numpy==1.26.4
+          
+          export PIP_FIND_LINKS=/tmp/numpy-wheel
+          export PIP_NO_INDEX=false
+          
+          # Gereksinimler dosyası
+          echo "numpy==1.26.4" > requirements.txt
+
+          # 4. ANA BUILD KOMUTU
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
-            --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
+            --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}" \
+            --build-name "ANNA Mobile" \
+            --include-packages opencv-python-headless,mediapipe,easyocr
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
