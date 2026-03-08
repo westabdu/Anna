@@ -27,10 +27,10 @@ jobs:
           sudo docker image prune --all --force
           df -h
 
-      - name: Setup Python 3.11
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Setup Java
         uses: actions/setup-java@v4
