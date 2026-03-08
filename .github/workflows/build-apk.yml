@@ -58,7 +58,7 @@ jobs:
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. KOTLIN VE GRADLE YAMASI (Geri planda hazır)
+          # 1. KOTLIN VE GRADLE YAMASI
           while true; do
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ]; then
@@ -68,19 +68,40 @@ jobs:
             sleep 1
           done &
 
-          # 2. NUMPY'I PROJENİN KALBİNE YERLEŞTİRME (Pip'i Bypass Ediyoruz)
-          # Pip'in Android için hata verdiği paketleri önceden indirip "vendor" klasörüne açıyoruz.
-          mkdir -p __pypackages__
-          pip install --target=./__pypackages__ --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 numpy==1.26.4
+          # 2. NUMPY'I MANUEL İNDİR VE YOLUNU SABİTLE
+          # Android uyumlu wheel dosyasını proje ana dizinine indiriyoruz
+          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 numpy==1.26.4 -d .
+          
+          # İndirilen dosyanın adını yakalıyoruz
+          NUMPY_WHEEL=$(ls numpy*.whl)
 
-          # 3. FLET'E "BUNLARI KURMA, BEN ZATEN KOYDUM" DİYORUZ
-          # requirements.txt dosyasını boş bırakıyoruz ki Flet Pip'i çalıştırmasın
-          touch requirements.txt
+          # 3. REQUIREMENTS.TXT - KRİTİK DEĞİŞİKLİK
+          # Pip'e internetten arama yapma, şu yerel dosyayı kullan diyoruz
+          cat > requirements.txt << EOF
+          ./$NUMPY_WHEEL
+          opencv-python-headless==4.9.0.80
+          mediapipe==0.10.8
+          easyocr==1.7.1
+          pytesseract==0.3.10
+          pyzbar==0.1.9
+          SpeechRecognition==3.10.4
+          gTTS==2.5.1
+          edge-tts==6.1.13
+          pygame==2.5.2
+          pvporcupine==3.0.3
+          sounddevice==0.4.6
+          soundfile==0.12.1
+          google-generativeai
+          groq
+          pillow==11.1.0
+          python-dotenv==1.0.1
+          requests==2.32.3
+          psutil==7.0.0
+          googletrans
+          EOF
 
-          # 4. ANA BUILD KOMUTU
-          # --include-packages ile kendi hazırladığımız paket klasörünü içeri alıyoruz
+          # 4. ANA BUILD KOMUTU (Hatalı flag kaldırıldı)
           yes | flet build apk --verbose \
-            --include-packages numpy \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
 
