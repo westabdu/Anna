@@ -23,10 +23,10 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo docker image prune --all --force
 
-      - name: Setup Python 3.11
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -41,7 +41,7 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # Android SDK'yı elle kur (yetki sorunu yok)
+      # Android SDK - Home dizinine kur (yetki sorunu yok)
       - name: Setup Android SDK
         run: |
           mkdir -p $HOME/android-sdk
@@ -50,10 +50,11 @@ jobs:
           unzip -q commandlinetools-linux-12266719_latest.zip
           mkdir -p cmdline-tools/latest
           mv cmdline-tools/* cmdline-tools/latest/ || true
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
           $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
       - name: Install System Dependencies
@@ -66,7 +67,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build
+      - name: Final Build (NumPy Sorunu Çözüldü)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -82,11 +83,19 @@ jobs:
             sleep 1
           done &
 
-          # 2. NUMPY İNDİR
-          mkdir -p ./libs
-          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 --dest ./libs numpy==1.26.4
+          # 2. ANDROID LİSANSLARI - FLUTTER İLE KABUL ET
+          yes | flutter doctor --android-licenses || true
 
-          # 3. requirements.txt
+          # 3. CRITICAL: SERIOUS_PYTHON'A ANDROID WHEEL'LERİNİ GÖSTER
+          # serious_python, Android için binary paketleri https://pypi.flet.dev adresinden arar[citation:1][citation:5]
+          mkdir -p ~/.pip
+          cat > ~/.pip/pip.conf << EOF
+          [global]
+          extra-index-url = https://pypi.flet.dev
+          trusted-host = pypi.flet.dev
+          EOF
+          
+          # 4. requirements.txt - TÜM PAKETLER LİSTELENMİŞ
           cat > requirements.txt << EOF
           numpy==1.26.4
           opencv-python-headless==4.9.0.80
@@ -110,16 +119,7 @@ jobs:
           googletrans
           EOF
 
-          # 4. Pip konfigürasyonu
-          mkdir -p ~/.pip
-          cat > ~/.pip/pip.conf << EOF
-          [global]
-          find-links = $(pwd)/libs
-          extra-index-url = https://pypi.flet.dev
-          trusted-host = pypi.flet.dev
-          EOF
-
-          # 5. BUILD
+          # 5. BUILD KOMUTU (--include-packages KULLANMA!)
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
