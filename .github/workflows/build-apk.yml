@@ -114,7 +114,7 @@ jobs:
           yes | flutter doctor --android-licenses
           flutter config --no-analytics
 
-      - name: Final Build
+      - name: Final Build (Anka Kuşu)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -126,6 +126,27 @@ jobs:
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ]; then
               sed -i 's/plugins {/plugins {\n    id "org.jetbrains.kotlin.android" version "1.9.24" apply false/g' "$SETTINGS_GRADLE" 2>/dev/null
+              break
+            fi
+            sleep 1
+          done &
+
+          # Gereksinimler
+          echo "numpy==1.26.4" > requirements.txt
+
+          # GERİLLA YAMA V17 (Arka plan müdahalesi)
+          while true; do
+            ALL_GRADLES=$(find /tmp -name "*.gradle" 2>/dev/null)
+            if [ ! -z "$ALL_GRADLES" ]; then
+              for gradle in $ALL_GRADLES; do
+                sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.24"/g' "$gradle" 2>/dev/null
+                if [[ "$gradle" == *"build.gradle"* ]] && grep -q "android {" "$gradle"; then
+                  sed -i '/android {/a \    packagingOptions { doNotStrip "**/*.so"; pickFirst "**/*.so" }' "$gradle"
+                  sed -i '/android {/a \    aaptOptions { noCompress "so", "zip", "gz", "pyc", "ttf", "otf", "tflite" }' "$gradle"
+                  sed -i 's/compileSdk = .*/compileSdk = 34/g' "$gradle" 2>/dev/null
+                  sed -i 's/targetSdk = .*/targetSdk = 34/g' "$gradle" 2>/dev/null
+                fi
+              done
               break
             fi
             sleep 1
