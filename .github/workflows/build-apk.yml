@@ -45,14 +45,14 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx tesseract-ocr tesseract-ocr-tur libzbar0 build-essential
+          sudo apt-get install -y libgl1-mesa-glx tesseract-ocr tesseract-ocr-tur libzbar0 build-essential libgtk-3-dev
 
-      - name: Install Flet (Stabil)
+      - name: Install Flet
         run: |
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Geceyi Bitiren Hamle)
+      - name: Final Build (Son Kale)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -68,21 +68,28 @@ jobs:
             sleep 1
           done &
 
-          # 2. NUMPY - TELEFON İŞLEMCİSİNE UYGUN (ARM64) İNDİRME
-          # Flet Android build için 'aarch64' (arm64) paketini arar.
+          # 2. ANDROID SDK KURULUMU
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+
+          # 3. NUMPY ZORLAMA - DOĞRU PLATFORM İLE!
+          # manylinux2014_x86_64 platformunu kullan - bu serious_python'ın beklediği format!
+          mkdir -p ./libs
           pip download \
             --only-binary :all: \
-            --platform musllinux_1_1_aarch64 \
+            --platform manylinux2014_x86_64 \
             --python-version 3.11 \
-            numpy==1.26.4 -d ./libs
+            --dest ./libs \
+            numpy==1.26.4
 
-          # İndirilen dosyanın adını tam alalım
-          WHEEL_PATH=$(ls ./libs/numpy*.whl)
+          # İndirilen wheel'in adını al
+          WHEEL_PATH=$(ls ./libs/numpy*.whl | head -1)
+          echo "İndirilen wheel: $WHEEL_PATH"
 
-          # 3. REQUIREMENTS.TXT - DOSYA YOLUNU GARANTİYE AL
-          # Pip'in 'file does not exist' dememesi için tam yolu veriyoruz
+          # 4. requirements.txt - PYPI STANDARD FORMATINDA!
+          # Bu formatta yol değil, paket adı olmalı!
           cat > requirements.txt << EOF
-          $WHEEL_PATH
+          numpy==1.26.4
           opencv-python-headless==4.9.0.80
           mediapipe==0.10.8
           easyocr==1.7.1
@@ -104,7 +111,16 @@ jobs:
           googletrans
           EOF
 
-          # 4. ANA BUILD KOMUTU
+          # 5. Pip konfigürasyonu - wheel'i bulsun diye
+          mkdir -p ~/.pip
+          cat > ~/.pip/pip.conf << EOF
+          [global]
+          find-links = $(pwd)/libs
+          extra-index-url = https://pypi.flet.dev
+          trusted-host = pypi.flet.dev
+          EOF
+
+          # 6. ANA BUILD KOMUTU
           yes | flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
