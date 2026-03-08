@@ -7,7 +7,7 @@ authors = [
     { name = "westabdu", email = "westabdu@users.noreply.github.com" }
 ]
 dependencies = [
-    "flet==0.22.0",
+    "flet==0.27.0",
     "numpy==1.26.4",
     "opencv-python-headless==4.9.0.80",
     "mediapipe==0.10.8",
@@ -50,8 +50,6 @@ permissions = [
     "VIBRATE",
     "WAKE_LOCK"
 ]
-
-# Android için özel derleme ayarları - DÜZELTİLDİ!
 min_sdk_version = 21
 target_sdk_version = 33
 ndk_version = "25.1.8937393"
