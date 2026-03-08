@@ -138,7 +138,6 @@ jobs:
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}" \
-            --include-packages opencv_python_headless,mediapipe,easyocr
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
