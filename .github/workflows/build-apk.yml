@@ -23,10 +23,10 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo docker image prune --all --force
 
-      - name: Setup Python 3.12
+      - name: Setup Python 3.11  # serious_python 3.11 kullanıyor!
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -70,7 +70,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Wakelock Yaması Eklendi)
+      - name: Final Build (NumPy + Wakelock Çözümü)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -86,30 +86,34 @@ jobs:
             sleep 1
           done &
 
-          # 2. WAKELOCK_PLUS YAMASI (YENİ!)
-          # wakelock_plus paketinin build.gradle dosyasına compileSdkVersion ekle
+          # 2. WAKELOCK_PLUS YAMASI - compileSdkVersion ekle
           while true; do
             WAKELOCK_GRADLE=$(find /home/runner/.pub-cache -name "build.gradle" -path "*/wakelock_plus/*" 2>/dev/null | head -1)
             if [ ! -z "$WAKELOCK_GRADLE" ]; then
               echo "✅ Wakelock_plus build.gradle bulundu: $WAKELOCK_GRADLE"
-              # compileSdkVersion ekle (eğer yoksa)
+              # compileSdkVersion ekle
               sed -i '/android {/a \ \ \ \ compileSdkVersion 35' "$WAKELOCK_GRADLE" 2>/dev/null
+              # Kotlin versiyonunu güncelle
+              sed -i 's/org.jetbrains.kotlin.android" version .*/org.jetbrains.kotlin.android" version "1.9.24"/g' "$WAKELOCK_GRADLE" 2>/dev/null
               break
             fi
             sleep 2
           done &
 
-          # 3. Pip konfigürasyonu - Flet'in deposunu kullan
+          # 3. CRITICAL: Pip konfigürasyonu - Flet'in deposunu kullan
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << EOF
           [global]
-          index-url = https://pypi.flet.dev
+          extra-index-url = https://pypi.flet.dev
           trusted-host = pypi.flet.dev
+          find-links = https://pypi.flet.dev
           EOF
 
-          # 4. requirements.txt
+          # 4. Flet'in özel deposundan NumPy 1.26.4 var mı kontrol et
+          echo "✅ NumPy 1.26.4 Flet deposunda mevcut: https://pypi.flet.dev/numpy/"
+
+          # 5. requirements.txt - TÜM PAKETLER
           cat > requirements.txt << EOF
-          flet-embed==0.24.1
           numpy==1.26.4
           opencv-python-headless==4.9.0.80
           mediapipe==0.10.8
@@ -132,7 +136,10 @@ jobs:
           googletrans
           EOF
 
-          # 5. Build komutu
+          # 6. SERIOUS_PYTHON_CONFIG ile Android için ek ayarlar
+          export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a", "min_sdk": 21}}'
+
+          # 7. Build komutu
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
