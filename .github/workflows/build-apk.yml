@@ -57,12 +57,15 @@ jobs:
           yes | flutter doctor --android-licenses
           flutter config --no-analytics
 
-      - name: Final Build (Final Boss Kesici)
+      - name: Final Build (İsyan Ateşi - Kesin Çözüm)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           PIP_CACHE_DIR: /tmp/pip-cache
           TMPDIR: /tmp
+          # FLET'İN SORU SORMASINI ENGELLEYEN KRİTİK AYARLAR
+          FLET_NON_INTERACTIVE: "true"
+          FLET_FLUTTER_SDK_PATH: /opt/hostedtoolcache/flutter/stable-3.24.3-x64
         run: |
           # 1. KOTLIN VE GRADLE YAMASI
           while true; do
@@ -101,12 +104,11 @@ jobs:
           trusted-host = pypi.flet.dev
           EOF
 
-          # 3. NUMPY ZORLAMA OPERASYONU (HATA 2 ÇÖZÜMÜ - PYTHON 3.11 İÇİN!)
+          # 3. NUMPY ZORLAMA OPERASYONU
           rm -rf ~/.cache/pip
           rm -rf /tmp/pip-*
           mkdir -p /tmp/numpy-wheel
 
-          # Dikkat: --python-version 3.11 yapıldı çünkü flet arkaplanda bunu istiyor!
           pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 --dest /tmp/numpy-wheel numpy==1.26.4
 
           export PIP_CONFIG_FILE=/tmp/pip-conf/pip.conf
@@ -115,9 +117,8 @@ jobs:
 
           echo "numpy==1.26.4" > requirements.txt
 
-          # 7. ANA BUILD KOMUTU (Soru sormasını engelledik ve yolu gösterdik)
-          yes | flet build apk --verbose \
-            --flutter-path /opt/hostedtoolcache/flutter/stable-3.24.3-x64/bin/flutter \
+          # 7. ANA BUILD KOMUTU
+          flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
 
