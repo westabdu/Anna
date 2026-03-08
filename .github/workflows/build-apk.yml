@@ -117,9 +117,6 @@ jobs:
 
       - name: Build APK (Anka Kuşu Modu)
         run: |          
-          # 1. SADECE RESİM VE GEREKSİZ DOSYALARI SİL (0x89'u engellemek için)
-          # Kodları (py, txt, toml) koruyoruz, geri kalan her şeyi siliyoruz.
-          find . -type f ! -name '*.py' ! -name '*.txt' ! -name '*.toml' ! -name '*.yml' ! -name '.env' -delete
           
           # 2. KOTLIN YAMASI (Arka Planda)
           while true; do
