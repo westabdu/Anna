@@ -68,17 +68,21 @@ jobs:
             sleep 1
           done &
 
-          # 2. NUMPY'I MANUEL İNDİR VE YOLUNU SABİTLE
-          # Android uyumlu wheel dosyasını proje ana dizinine indiriyoruz
-          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 numpy==1.26.4 -d .
-          
-          # İndirilen dosyanın adını yakalıyoruz
-          NUMPY_WHEEL=$(ls numpy*.whl)
+          # 2. NUMPY - TELEFON İŞLEMCİSİNE UYGUN (ARM64) İNDİRME
+          # Flet Android build için 'aarch64' (arm64) paketini arar.
+          pip download \
+            --only-binary :all: \
+            --platform musllinux_1_1_aarch64 \
+            --python-version 3.11 \
+            numpy==1.26.4 -d ./libs
 
-          # 3. REQUIREMENTS.TXT - KRİTİK DEĞİŞİKLİK
-          # Pip'e internetten arama yapma, şu yerel dosyayı kullan diyoruz
+          # İndirilen dosyanın adını tam alalım
+          WHEEL_PATH=$(ls ./libs/numpy*.whl)
+
+          # 3. REQUIREMENTS.TXT - DOSYA YOLUNU GARANTİYE AL
+          # Pip'in 'file does not exist' dememesi için tam yolu veriyoruz
           cat > requirements.txt << EOF
-          ./$NUMPY_WHEEL
+          $WHEEL_PATH
           opencv-python-headless==4.9.0.80
           mediapipe==0.10.8
           easyocr==1.7.1
@@ -100,7 +104,7 @@ jobs:
           googletrans
           EOF
 
-          # 4. ANA BUILD KOMUTU (Hatalı flag kaldırıldı)
+          # 4. ANA BUILD KOMUTU
           yes | flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}"
