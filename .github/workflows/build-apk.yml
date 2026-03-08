@@ -120,13 +120,13 @@ jobs:
             sleep 1
           done &
 
-          # 3. NUMPY ZORLAMA OPERASYONU
+          # 3. NUMPY ZORLAMA OPERASYONU (3.12 Ayarı)
           rm -rf ~/.cache/pip
           rm -rf /tmp/pip-*
           mkdir -p /tmp/numpy-wheel
           
-          # NumPy 1.26.4 wheel'ini hazırla
-          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.11 --dest /tmp/numpy-wheel numpy==1.26.4
+          # BURASI KRİTİK: python-version 3.12 olarak güncellendi
+          pip download --only-binary :all: --platform manylinux2014_x86_64 --python-version 3.12 --dest /tmp/numpy-wheel numpy==1.26.4
           
           export PIP_FIND_LINKS=/tmp/numpy-wheel
           export PIP_NO_INDEX=false
@@ -134,11 +134,10 @@ jobs:
           # Gereksinimler dosyası
           echo "numpy==1.26.4" > requirements.txt
 
-          # 4. ANA BUILD KOMUTU
+          # 4. ANA BUILD KOMUTU (Hatalı build-name kaldırıldı)
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "${{ github.event.inputs.version || '0.4' }}.${{ github.run_number }}" \
-            --build-name "ANNA Mobile" \
             --include-packages opencv-python-headless,mediapipe,easyocr
 
       - name: Upload APK
