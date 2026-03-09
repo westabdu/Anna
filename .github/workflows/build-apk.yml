@@ -88,33 +88,35 @@ jobs:
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' {} + 2>/dev/null || true
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' {} + 2>/dev/null || true
 
-          # 🛡️ Pusu Modu (V4 - Global Modül Temizliği)
+          # 🛡️ Pusu Modu (V6 - Nükleer Seçenek)
           while true; do
-            # Bütün build.gradle ve settings.gradle dosyalarını bul
+            # 1. Bütün dosyaları bul
             ALL_GRADLES=$(find /tmp -name "build.gradle" 2>/dev/null)
             ALL_SETTINGS=$(find /tmp -name "settings.gradle" 2>/dev/null)
 
-            # 1. Kotlin Sürümünü Her Yerde 2.1.0 Yap (Metadata hatalarını en iyi bu çözer)
+            # 2. Kotlin Sürümünü GLOBAL olarak 2.1.0'a kitle
             for s in $ALL_SETTINGS; do
               sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.0"/g' "$s"
+              # Eğer plugin tanımı yoksa zorla ekle
+              if ! grep -q "org.jetbrains.kotlin.android" "$s"; then
+                sed -i '/plugins {/a \    id "org.jetbrains.kotlin.android" version "2.1.0" apply false' "$s"
+              fi
             done
 
             for g in $ALL_GRADLES; do
-              # 2. SDK Versiyonlarını 35'e Çek (Wakelock 35 istiyor)
+              # 3. SDK ve Java 17 Ayarları (Tam Uyum)
               sed -i 's/compileSdk = .*/compileSdk = 35/g' "$g"
               sed -i 's/targetSdk = .*/targetSdk = 35/g' "$g"
-              sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$g"
-              sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' "$g"
-
-              # 3. Java Uyumluluğunu 17 Yap (Setup Java ile aynı olsun ki kavga çıkmasın!)
               sed -i 's/JavaVersion.VERSION_1_8/JavaVersion.VERSION_17/g' "$g"
               sed -i 's/JavaVersion.VERSION_11/JavaVersion.VERSION_17/g' "$g"
 
-              # 4. R8/Minify Kapat (Metadata hatalarının ana kaynağı bu)
-              sed -i 's/minifyEnabled true/minifyEnabled false/g' "$g"
-              sed -i 's/shrinkResources true/shrinkResources false/g' "$g"
+              # 4. EN KRİTİK KISIM: Wakelock gibi inatçı modüllere Kotlin 2.1.0 enjekte et
+              if grep -q "apply plugin: 'kotlin-android'" "$g" || grep -q "id 'org.jetbrains.kotlin.android'" "$g"; then
+                # build.gradle içinde ext.kotlin_version varsa güncelle
+                sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.1.0"/g' "$g"
+              fi
 
-              # 5. K2 Derleyicisini ve Metadata Kontrolünü Her Modülde Sustur
+              # 5. Metadata Hatasını Sustur ve K2'yi zorla kapat
               if ! grep -q "Xskip-metadata-version-check" "$g"; then
                 if grep -q "kotlinOptions {" "$g"; then
                   sed -i '/kotlinOptions {/a \        freeCompilerArgs += ["-Xskip-metadata-version-check", "-P", "kotlin.experimental.tryK2=false"]' "$g"
