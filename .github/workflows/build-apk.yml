@@ -88,15 +88,15 @@ jobs:
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' {} + 2>/dev/null || true
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' {} + 2>/dev/null || true
 
-          # 2. PUSU MODU (Senin 2.0.21 stratejin + Metadata Bypass)
+          # 2. PUSU MODU (Sadece Kotlin'i hedef alan akıllı sürüm)
           while true; do
             ROOT_BUILD=$(find /tmp -name "build.gradle" -path "*/android/build.gradle" 2>/dev/null | head -1)
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
 
             if [ ! -z "$SETTINGS_GRADLE" ]; then
-              # Kotlin versiyonunu 2.0.21'e zorla
-              sed -i 's/version "[^"]*"/version "2.0.21"/g' "$SETTINGS_GRADLE"
+              # Sadece "kotlin.android" satırındaki versiyonu değiştir (DİĞERLERİNE DOKUNMA)
+              sed -i '/kotlin.android/s/version "[^"]*"/version "2.0.21"/g' "$SETTINGS_GRADLE"
             fi
 
             if [ ! -z "$ROOT_BUILD" ]; then
@@ -109,14 +109,15 @@ jobs:
             fi
 
             if [ ! -z "$APP_BUILD" ]; then
-              # SENİN EKLEDİĞİN KRİTİK METADATA BAYRAĞI
+              # Senin o meşhur metadata bayrağın
               if ! grep -q "Xskip-metadata-version-check" "$APP_BUILD"; then
-                # kotlinOptions içine bayrağı yerleştir
                 sed -i '/kotlinOptions {/a \        freeCompilerArgs += ["-Xskip-metadata-version-check"]' "$APP_BUILD"
               fi
+              # R8/Minify kapatma (Garanti olsun)
+              sed -i 's/minifyEnabled true/minifyEnabled false/g' "$APP_BUILD"
+              sed -i 's/shrinkResources true/shrinkResources false/g' "$APP_BUILD"
             fi
             
-            # DÖNGÜYÜ KIRMA! Build bitene kadar (yaklaşık 10-15 dk) pusuya devam etsin.
             sleep 2
           done &
 
