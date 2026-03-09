@@ -88,34 +88,36 @@ jobs:
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' {} + 2>/dev/null || true
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' {} + 2>/dev/null || true
 
-          # 2. PUSU MODU (Arka planda /tmp klasörünü sürekli denetle)
+          # 2. PUSU MODU (Senin 2.0.21 stratejin + Metadata Bypass)
           while true; do
             ROOT_BUILD=$(find /tmp -name "build.gradle" -path "*/android/build.gradle" 2>/dev/null | head -1)
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
+            APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
 
             if [ ! -z "$SETTINGS_GRADLE" ]; then
-              # Kotlin versiyonunu 2.2.20'e zorla (En günceli bu)
-              if grep -q "org.jetbrains.kotlin.android" "$SETTINGS_GRADLE"; then
-                sed -i 's/version "[^"]*"/version "2.2.20"/g' "$SETTINGS_GRADLE"
-              else
-                sed -i 's/plugins {/plugins {\n    id "org.jetbrains.kotlin.android" version "2.2.20" apply false/g' "$SETTINGS_GRADLE"
-              fi
+              # Kotlin versiyonunu 2.0.21'e zorla
+              sed -i 's/version "[^"]*"/version "2.0.21"/g' "$SETTINGS_GRADLE"
             fi
 
             if [ ! -z "$ROOT_BUILD" ]; then
-              # Kotlin versiyonunu değişken olarak da ekle
+              # ext.kotlin_version'u güncelle veya ekle
               if ! grep -q "kotlin_version =" "$ROOT_BUILD"; then
-                sed -i '/buildscript {/a \    ext.kotlin_version = "2.2.20"' "$ROOT_BUILD"
+                sed -i '/buildscript {/a \    ext.kotlin_version = "2.0.21"' "$ROOT_BUILD"
+              else
+                sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '2.0.21'/g" "$ROOT_BUILD"
+              fi
+            fi
+
+            if [ ! -z "$APP_BUILD" ]; then
+              # SENİN EKLEDİĞİN KRİTİK METADATA BAYRAĞI
+              if ! grep -q "Xskip-metadata-version-check" "$APP_BUILD"; then
+                # kotlinOptions içine bayrağı yerleştir
+                sed -i '/kotlinOptions {/a \        freeCompilerArgs += ["-Xskip-metadata-version-check"]' "$APP_BUILD"
               fi
             fi
             
-            # App klasörü oluştuysa saniyeler içinde build başlayacak demektir
-            APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
-            if [ ! -z "$APP_BUILD" ]; then
-              sleep 5
-              break
-            fi
-            sleep 1
+            # DÖNGÜYÜ KIRMA! Build bitene kadar (yaklaşık 10-15 dk) pusuya devam etsin.
+            sleep 2
           done &
 
           # 3. PIP VE NUMPY YAPILANDIRMASI (Senin kazandığın cephe)
