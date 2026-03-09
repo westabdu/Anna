@@ -1,4 +1,4 @@
-name: Build ANNA Mobile APK
+name: Build ANNA Mobile APK - Bolu 60
 
 on:
   workflow_dispatch:
@@ -41,42 +41,61 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Setup Android SDK
+      - name: Pre-emptive Wakelock Fix (Kökten Çözüm)
         run: |
-          mkdir -p $HOME/android-sdk
-          cd $HOME/android-sdk
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
-          unzip -q commandlinetools-linux-12266719_latest.zip
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/* cmdline-tools/latest/ || true
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+          # 1. Kütüphane klasörünü önceden biz oluşturuyoruz
+          WAKELOCK_DIR="$HOME/.pub-cache/hosted/pub.dev/wakelock_plus-1.4.0/android"
+          mkdir -p "$WAKELOCK_DIR"
+          
+          # 2. İçine tertemiz ve hatasız bir build.gradle dosyası yazıyoruz
+          # Bu dosya 'unknown property flutter' ve 'substring' hatalarını imkansız hale getirir
+          cat > "$WAKELOCK_DIR/build.gradle" << 'EOF'
+          group 'com.wakelock_plus'
+          version '1.0-SNAPSHOT'
 
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx tesseract-ocr tesseract-ocr-tur libzbar0 build-essential libgtk-3-dev
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.0'
+              }
+          }
 
-      - name: Accept Android Licenses (SDK 35 Destekli)
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "platforms;android-35" "build-tools;33.0.0" "build-tools;35.0.0" || true
-          yes | flutter doctor --android-licenses || true
+          apply plugin: 'com.android.library'
 
-      - name: Install Flet
-        run: |
-          python -m pip install --upgrade pip
-          pip install flet==0.24.1
+          // Sahte flutter objesi ekleyerek hatayı kökten engelliyoruz
+          project.ext.flutter = [
+              compileSdkVersion: 35,
+              minSdkVersion: 21,
+              targetSdkVersion: 35
+          ]
 
-      - name: Final Build (Agresif Pusu - hedef:/tmp/build )
+          android {
+              namespace "com.wakelock_plus"
+              compileSdkVersion 35
+              
+              defaultConfig {
+                  minSdkVersion 21
+                  targetSdkVersion 35
+              }
+              
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF
+          echo "✅ Wakelock dosyası önceden hazırlandı, artık hata veremez!"
+
+      - name: Final Build (Agresif Pusu Modu)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. PIP VE NUMPY YAPILANDIRMASI
+          # PIP VE NUMPY YAPILANDIRMASI
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << EOF
           [global]
@@ -84,57 +103,27 @@ jobs:
           trusted-host = pypi.flet.dev
           EOF
 
-          cat > requirements.txt << EOF
-          flet-embed==0.24.1
-          EOF
-
-          mkdir -p ./libs
-          pip download --only-binary :all: --platform manylinux2014_aarch64 --python-version 3.12 --dest ./libs numpy==1.26.4 || true
-
-          # 2. ANDROID KONFİGÜRASYONU
-          export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
-          # 3. PUSU MODU (Kesin Çözüm - Hedef /tmp/build içindeki wakelock_plus)
+          # Agresif Pusu: Gradle her başladığında tüm sistemdeki gradle dosyalarını tekrar kontrol et
           while true; do
-            # Proje build dizinindeki wakelock_plus klasörünü bul ve yamala
-            WAKELOCK_BUILD_DIR=$(find /tmp -type d -path "*/flet_flutter_build*/build/wakelock_plus" 2>/dev/null | head -1)
-            if [ ! -z "$WAKELOCK_BUILD_DIR" ]; then
-              TARGET_GRADLE="$WAKELOCK_BUILD_DIR/android/build.gradle"
-              if [ -f "$TARGET_GRADLE" ]; then
-                echo "🎯 Wakelock build.gradle hedefte: $TARGET_GRADLE"
-                
-                # Kotlin plugin satırını kaldır (AGP 9+ çözümü) [citation:2]
-                sed -i '/id "org.jetbrains.kotlin.android"/d' "$TARGET_GRADLE"
-                sed -i '/apply plugin.*kotlin-android/d' "$TARGET_GRADLE"
-
-                # compileSdkVersion, minSdkVersion, targetSdkVersion'ı ekle
-                if grep -q "android {" "$TARGET_GRADLE"; then
-                  sed -i '/android {/a \    compileSdk 35' "$TARGET_GRADLE"
-                  sed -i '/defaultConfig {/a \        minSdk 21\n        targetSdk 35' "$TARGET_GRADLE"
-                fi
-
-                # flutter.compileSdkVersion gibi ifadeleri rakamlarla değiştir
-                sed -i 's/flutter\.compileSdkVersion/35/g' "$TARGET_GRADLE"
-                sed -i 's/flutter\.minSdkVersion/21/g' "$TARGET_GRADLE"
-                sed -i 's/flutter\.targetSdkVersion/35/g' "$TARGET_GRADLE"
-                
-                echo "✅ Wakelock build.gradle başarıyla yamalandı!"
-                break
+            # Tüm sistemde wakelock build.gradle'ları avla ve saniyelik müdahale et
+            ALL_WAKELOCKS=$(find /home/runner /tmp -name "build.gradle" -path "*/wakelock_plus-1.4.0/*" 2>/dev/null)
+            for W_GRADLE in $ALL_WAKELOCKS; do
+              if ! grep -q "namespace" "$W_GRADLE"; then
+                sed -i '1i project.ext.flutter = [compileSdkVersion: 35, minSdkVersion: 21, targetSdkVersion: 35]\nandroid { namespace "com.wakelock_plus" }' "$W_GRADLE"
+                echo "🎯 Pusu başarılı: $W_GRADLE yamalandı!"
               fi
-            fi
+            done
 
-            # Settings.gradle düzenlemesi (yedek)
+            # Settings.gradle düzenlemesi
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ] && ! grep -q "2.0.21" "$SETTINGS_GRADLE"; then
               sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
               echo "✅ Settings.gradle güncellendi!"
             fi
-
-            sleep 2
+            sleep 0.5
           done &
 
-          # 4. FİNAL VURUŞ
+          # FİNAL VURUŞ
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "0.4.${{ github.run_number }}"
