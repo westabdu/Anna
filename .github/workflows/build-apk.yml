@@ -70,7 +70,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (GitHub Issue #117 Resmi Çözümü)
+      - name: Final Build (Wakelock Kök Çözüm)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -95,7 +95,7 @@ jobs:
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-          # 3. PUSU MODU (RESMİ GITHUB ISSUE #117 ÇÖZÜMÜ)
+          # 3. PUSU MODU (KÖK ÇÖZÜM - TÜM flutter REFERANSLARINI TEMİZLE)
           while true; do
             # Wakelock'un build.gradle dosyasını bul
             WAKELOCK_GRADLE=$(find /home/runner/.pub-cache -name "build.gradle" -path "*/wakelock_plus-1.4.0/*" 2>/dev/null | head -1)
@@ -103,21 +103,35 @@ jobs:
             if [ ! -z "$WAKELOCK_GRADLE" ]; then
               echo "🎯 Wakelock build.gradle bulundu: $WAKELOCK_GRADLE"
               
-              # RESMİ ÇÖZÜM #1: Kotlin-android plugin'ini tamamen kaldır [citation:1]
-              sed -i '/id "org.jetbrains.kotlin.android"/d' "$WAKELOCK_GRADLE"
-              sed -i '/apply plugin.*kotlin-android/d' "$WAKELOCK_GRADLE"
+              # KRİTİK: flutter.compileSdkVersion gibi tüm flutter referanslarını bul ve sabit değerlerle değiştir [citation:2][citation:4]
+              sed -i 's/flutter\.compileSdkVersion/35/g' "$WAKELOCK_GRADLE"
+              sed -i 's/flutter\.minSdkVersion/21/g' "$WAKELOCK_GRADLE"
+              sed -i 's/flutter\.targetSdkVersion/35/g' "$WAKELOCK_GRADLE"
+              sed -i 's/flutter\.ndkVersion/"25.2.9519653"/g' "$WAKELOCK_GRADLE"
               
-              # RESMİ ÇÖZÜM #2: compileSdkVersion ekle [citation:2][citation:3]
-              if ! grep -q "compileSdkVersion" "$WAKELOCK_GRADLE"; then
-                sed -i '/android {/a \    compileSdkVersion 35' "$WAKELOCK_GRADLE"
+              # compileSdkVersion, minSdkVersion, targetSdkVersion'ı doğrudan android bloğuna ekle [citation:3]
+              if grep -q "android {" "$WAKELOCK_GRADLE"; then
+                # compileSdkVersion ekle (yoksa)
+                if ! grep -q "compileSdkVersion" "$WAKELOCK_GRADLE"; then
+                  sed -i '/android {/a \    compileSdkVersion 35' "$WAKELOCK_GRADLE"
+                fi
+                
+                # defaultConfig bloğu yoksa ekle, varsa min/target ekle
+                if ! grep -q "defaultConfig" "$WAKELOCK_GRADLE"; then
+                  sed -i '/android {/a \    defaultConfig {\n        minSdkVersion 21\n        targetSdkVersion 35\n    }' "$WAKELOCK_GRADLE"
+                else
+                  # minSdkVersion ekle (yoksa)
+                  if ! grep -q "minSdkVersion" "$WAKELOCK_GRADLE"; then
+                    sed -i '/defaultConfig {/a \        minSdkVersion 21' "$WAKELOCK_GRADLE"
+                  fi
+                  # targetSdkVersion ekle (yoksa)
+                  if ! grep -q "targetSdkVersion" "$WAKELOCK_GRADLE"; then
+                    sed -i '/defaultConfig {/a \        targetSdkVersion 35' "$WAKELOCK_GRADLE"
+                  fi
+                fi
               fi
               
-              # RESMİ ÇÖZÜM #3: minSdkVersion ve targetSdkVersion ekle
-              if ! grep -q "defaultConfig" "$WAKELOCK_GRADLE"; then
-                sed -i '/android {/a \    defaultConfig {\n        minSdkVersion 21\n        targetSdkVersion 35\n    }' "$WAKELOCK_GRADLE"
-              fi
-              
-              echo "✅ Wakelock build.gradle resmi çözümle yamalandı!"
+              echo "✅ Wakelock build.gradle kök çözümle yamalandı!"
               break
             fi
 
