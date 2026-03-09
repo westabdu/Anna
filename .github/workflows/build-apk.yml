@@ -70,7 +70,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Wakelock AGP 9 Çözümü Çin Seddi)
+      - name: Final Build (Wakelock AGP 9 Çözümü)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -102,40 +102,31 @@ jobs:
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-          # 4. PUSU MODU (Wakelock için Özel Yama - AGP 9 Uyumluluğu)
+          # 4. PUSU MODU (Wakelock için Özel Yama - AGP 9 Uyumluluğu) [citation:2][citation:4]
           while true; do
-            # ÖNCE DOSYALARI BUL
+            # Wakelock'un build.gradle dosyasını bul
             WAKELOCK_GRADLE=$(find /home/runner/.pub-cache -name "build.gradle" -path "*/wakelock_plus/*" 2>/dev/null | head -1)
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
 
-            # SONRA MÜDAHALE ET
-            if [ ! -z "$WAKELOCK_GRADLE" ]; then
-              # "flutter." ile başlayan her şeyi sayılara çevir
-              sed -i 's/flutter\.compileSdkVersion/35/g' "$WAKELOCK_GRADLE"
-              sed -i 's/flutter\.minSdkVersion/21/g' "$WAKELOCK_GRADLE"
-              sed -i 's/flutter\.targetSdkVersion/35/g' "$WAKELOCK_GRADLE"
-              
-              # Eski plugin satırlarını temizle
-              sed -i '/apply plugin.*kotlin-android/d' "$WAKELOCK_GRADLE"
-              sed -i '/id.*kotlin-android/d' "$WAKELOCK_GRADLE"
-              
-              # compileSdkVersion'u manuel zorla
-              sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$WAKELOCK_GRADLE"
-            fi
-
-            # KRİTİK 1: Wakelock'un build.gradle'ından kotlin-android plugin'ini kaldır [citation:3]
+            # KRİTİK 1: Wakelock'un build.gradle'ından tüm flutter.compileSdkVersion referanslarını kaldır [citation:4]
             if [ ! -z "$WAKELOCK_GRADLE" ]; then
               echo "✅ Wakelock build.gradle bulundu: $WAKELOCK_GRADLE"
+              
               # "apply plugin: 'kotlin-android'" satırını sil
               sed -i '/apply plugin.*kotlin-android/d' "$WAKELOCK_GRADLE"
               sed -i '/id.*kotlin-android/d' "$WAKELOCK_GRADLE"
               
-              # compileSdkVersion 35 yap
-              sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$WAKELOCK_GRADLE"
-              
-              # flutter.compileSdkVersion varsa onu da 35 yap
+              # flutter.compileSdkVersion'ı doğrudan 35 ile değiştir
               sed -i 's/flutter\.compileSdkVersion/35/g' "$WAKELOCK_GRADLE"
+              
+              # flutter.ndkVersion'ı doğrudan "25.2.9519653" ile değiştir
+              sed -i 's/flutter\.ndkVersion/"25.2.9519653"/g' "$WAKELOCK_GRADLE"
+              
+              # Eğer hala compileSdkVersion tanımlı değilse, doğrudan ekle
+              if ! grep -q "compileSdkVersion" "$WAKELOCK_GRADLE"; then
+                sed -i '/android {/a \    compileSdkVersion 35' "$WAKELOCK_GRADLE"
+              fi
             fi
 
             # KRİTİK 2: Settings.gradle'de Kotlin plugin'ini güncelle
