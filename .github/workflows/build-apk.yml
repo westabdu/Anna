@@ -88,41 +88,39 @@ jobs:
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' {} + 2>/dev/null || true
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' {} + 2>/dev/null || true
 
-      - name: 🛡️ Pusu Modu (V4 - Global Modül Temizliği)
-        run: |
+          # 🛡️ Pusu Modu (V4 - Global Modül Temizliği)
           while true; do
-            # 1. BÜTÜN build.gradle dosyalarını bul (Modüller dahil)
+            # Bütün build.gradle ve settings.gradle dosyalarını bul
             ALL_GRADLES=$(find /tmp -name "build.gradle" 2>/dev/null)
-            SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
+            ALL_SETTINGS=$(find /tmp -name "settings.gradle" 2>/dev/null)
 
-            if [ ! -z "$SETTINGS_GRADLE" ]; then
-              # Kotlin sürümünü 2.1.0'a çek (Daha kararlı ve metadata hatası daha az)
-              sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.0"/g' "$SETTINGS_GRADLE"
-            fi
+            # 1. Kotlin Sürümünü Her Yerde 2.1.0 Yap (Metadata hatalarını en iyi bu çözer)
+            for s in $ALL_SETTINGS; do
+              sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.0"/g' "$s"
+            done
 
             for g in $ALL_GRADLES; do
-              # Her bir build.gradle dosyası için SDK 35 ve Metadata baypasını uygula
+              # 2. SDK Versiyonlarını 35'e Çek (Wakelock 35 istiyor)
               sed -i 's/compileSdk = .*/compileSdk = 35/g' "$g"
               sed -i 's/targetSdk = .*/targetSdk = 35/g' "$g"
               sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$g"
               sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' "$g"
-              
-              # R8 ve Minify'ı her yerde kapat
+
+              # 3. Java Uyumluluğunu 17 Yap (Setup Java ile aynı olsun ki kavga çıkmasın!)
+              sed -i 's/JavaVersion.VERSION_1_8/JavaVersion.VERSION_17/g' "$g"
+              sed -i 's/JavaVersion.VERSION_11/JavaVersion.VERSION_17/g' "$g"
+
+              # 4. R8/Minify Kapat (Metadata hatalarının ana kaynağı bu)
               sed -i 's/minifyEnabled true/minifyEnabled false/g' "$g"
               sed -i 's/shrinkResources true/shrinkResources false/g' "$g"
 
-              # Metadata baypasını ve K2 kapatmasını ekle
+              # 5. K2 Derleyicisini ve Metadata Kontrolünü Her Modülde Sustur
               if ! grep -q "Xskip-metadata-version-check" "$g"; then
                 if grep -q "kotlinOptions {" "$g"; then
                   sed -i '/kotlinOptions {/a \        freeCompilerArgs += ["-Xskip-metadata-version-check", "-P", "kotlin.experimental.tryK2=false"]' "$g"
                 fi
               fi
-              
-              # Java 11 Zorlaması
-              sed -i 's/sourceCompatibility JavaVersion.VERSION_1_8/sourceCompatibility JavaVersion.VERSION_11/g' "$g"
-              sed -i 's/targetCompatibility JavaVersion.VERSION_1_8/targetCompatibility JavaVersion.VERSION_11/g' "$g"
             done
-            
             sleep 2
           done &
 
