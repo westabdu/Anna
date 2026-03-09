@@ -89,13 +89,16 @@ jobs:
           EOF
           echo "✅ Wakelock dosyası önceden hazırlandı, artık hata veremez!"
 
-      - name: Final Build (Agresif Pusu Modu)
+      - name: Final Build (Agresif Pusu & Flet Kurulumu)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # PIP VE NUMPY YAPILANDIRMASI
+          # 1. FLET VE GEREKLİ ARAÇLARI KUR (Eksik olan buydu!)
+          pip install flet
+
+          # 2. PIP VE NUMPY YAPILANDIRMASI
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << EOF
           [global]
@@ -103,9 +106,8 @@ jobs:
           trusted-host = pypi.flet.dev
           EOF
 
-          # Agresif Pusu: Gradle her başladığında tüm sistemdeki gradle dosyalarını tekrar kontrol et
+          # 3. AGRESİF PUSU (0.5 Saniye)
           while true; do
-            # Tüm sistemde wakelock build.gradle'ları avla ve saniyelik müdahale et
             ALL_WAKELOCKS=$(find /home/runner /tmp -name "build.gradle" -path "*/wakelock_plus-1.4.0/*" 2>/dev/null)
             for W_GRADLE in $ALL_WAKELOCKS; do
               if ! grep -q "namespace" "$W_GRADLE"; then
@@ -114,20 +116,18 @@ jobs:
               fi
             done
 
-            # Settings.gradle düzenlemesi
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ] && ! grep -q "2.0.21" "$SETTINGS_GRADLE"; then
               sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
-              echo "✅ Settings.gradle güncellendi!"
             fi
             sleep 0.5
           done &
 
-          # FİNAL VURUŞ
+          # 4. FİNAL VURUŞ (SPEEDRUN MODU)
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "0.4.${{ github.run_number }}"
-
+            
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
