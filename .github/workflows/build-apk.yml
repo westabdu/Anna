@@ -94,18 +94,18 @@ jobs:
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
 
             if [ ! -z "$SETTINGS_GRADLE" ]; then
-              # Kotlin versiyonunu 1.9.0'e zorla (En günceli bu)
+              # Kotlin versiyonunu 2.2.20'e zorla (En günceli bu)
               if grep -q "org.jetbrains.kotlin.android" "$SETTINGS_GRADLE"; then
-                sed -i 's/version "[^"]*"/version "1.9.0"/g' "$SETTINGS_GRADLE"
+                sed -i 's/version "[^"]*"/version "2.2.20"/g' "$SETTINGS_GRADLE"
               else
-                sed -i 's/plugins {/plugins {\n    id "org.jetbrains.kotlin.android" version "1.9.0" apply false/g' "$SETTINGS_GRADLE"
+                sed -i 's/plugins {/plugins {\n    id "org.jetbrains.kotlin.android" version "2.2.20" apply false/g' "$SETTINGS_GRADLE"
               fi
             fi
 
             if [ ! -z "$ROOT_BUILD" ]; then
               # Kotlin versiyonunu değişken olarak da ekle
               if ! grep -q "kotlin_version =" "$ROOT_BUILD"; then
-                sed -i '/buildscript {/a \    ext.kotlin_version = "1.9.0"' "$ROOT_BUILD"
+                sed -i '/buildscript {/a \    ext.kotlin_version = "2.2.20"' "$ROOT_BUILD"
               fi
             fi
             
