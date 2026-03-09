@@ -88,48 +88,40 @@ jobs:
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' {} + 2>/dev/null || true
           find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' {} + 2>/dev/null || true
 
-      - name: 🛡️ Pusu Modu (V3 - K2 Killer)
+      - name: 🛡️ Pusu Modu (V4 - Global Modül Temizliği)
         run: |
-          # 2. PUSU MODU (Kotlin 2.0 Fix + SDK 35 + K2 Disable)
           while true; do
+            # 1. BÜTÜN build.gradle dosyalarını bul (Modüller dahil)
+            ALL_GRADLES=$(find /tmp -name "build.gradle" 2>/dev/null)
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
-            ROOT_BUILD=$(find /tmp -name "build.gradle" -path "*/android/build.gradle" 2>/dev/null | head -1)
-            APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
 
             if [ ! -z "$SETTINGS_GRADLE" ]; then
-              # Kotlin versiyonunu sabitle
-              sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
+              # Kotlin sürümünü 2.1.0'a çek (Daha kararlı ve metadata hatası daha az)
+              sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.0"/g' "$SETTINGS_GRADLE"
             fi
 
-            if [ ! -z "$ROOT_BUILD" ]; then
-              # Kotlin versiyon değişkenini güncelle
-              sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.0.21"/g' "$ROOT_BUILD"
-            fi
-
-            if [ ! -z "$APP_BUILD" ]; then
-              # 1. SDK 35 ZORLAMASI (Hata dosyasındaki uyarılara istinaden)
-              sed -i 's/compileSdk = .*/compileSdk = 35/g' "$APP_BUILD"
-              sed -i 's/targetSdk = .*/targetSdk = 35/g' "$APP_BUILD"
-              sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$APP_BUILD"
-              sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' "$APP_BUILD"
-
-              # 2. R8 ve Minify KAPAT (Garantiye alalım)
-              sed -i 's/minifyEnabled true/minifyEnabled false/g' "$APP_BUILD"
-              sed -i 's/shrinkResources true/shrinkResources false/g' "$APP_BUILD"
+            for g in $ALL_GRADLES; do
+              # Her bir build.gradle dosyası için SDK 35 ve Metadata baypasını uygula
+              sed -i 's/compileSdk = .*/compileSdk = 35/g' "$g"
+              sed -i 's/targetSdk = .*/targetSdk = 35/g' "$g"
+              sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$g"
+              sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' "$g"
               
-              # 3. K2 DERLEYİCİSİNİ KAPAT (Kritik: wakelock_plus hatasını bu çözer)
-              if ! grep -q "kotlin.experimental.tryK2" "$APP_BUILD"; then
-                if grep -q "kotlinOptions {" "$APP_BUILD"; then
-                  sed -i '/kotlinOptions {/a \            freeCompilerArgs += ["-Xskip-metadata-version-check", "-P", "kotlin.experimental.tryK2=false"]' "$APP_BUILD"
-                else
-                  sed -i '/android {/a \    kotlinOptions {\n        freeCompilerArgs += ["-Xskip-metadata-version-check", "-P", "kotlin.experimental.tryK2=false"]\n    }' "$APP_BUILD"
+              # R8 ve Minify'ı her yerde kapat
+              sed -i 's/minifyEnabled true/minifyEnabled false/g' "$g"
+              sed -i 's/shrinkResources true/shrinkResources false/g' "$g"
+
+              # Metadata baypasını ve K2 kapatmasını ekle
+              if ! grep -q "Xskip-metadata-version-check" "$g"; then
+                if grep -q "kotlinOptions {" "$g"; then
+                  sed -i '/kotlinOptions {/a \        freeCompilerArgs += ["-Xskip-metadata-version-check", "-P", "kotlin.experimental.tryK2=false"]' "$g"
                 fi
               fi
               
-              # 4. Java 11 Zorlaması
-              sed -i 's/sourceCompatibility JavaVersion.VERSION_1_8/sourceCompatibility JavaVersion.VERSION_11/g' "$APP_BUILD"
-              sed -i 's/targetCompatibility JavaVersion.VERSION_1_8/targetCompatibility JavaVersion.VERSION_11/g' "$APP_BUILD"
-            fi
+              # Java 11 Zorlaması
+              sed -i 's/sourceCompatibility JavaVersion.VERSION_1_8/sourceCompatibility JavaVersion.VERSION_11/g' "$g"
+              sed -i 's/targetCompatibility JavaVersion.VERSION_1_8/targetCompatibility JavaVersion.VERSION_11/g' "$g"
+            done
             
             sleep 2
           done &
