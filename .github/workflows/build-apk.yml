@@ -70,63 +70,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Zırhlı Paket - Her Şey Dahil Fix)
+      - name: Final Build (Wakelock Çözümü - AGP 9 Uyumluluğu)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. ÖNDEN MÜDAHALE (Eklentileri indir ve daha doğmadan yamala)
-          echo "Eklentiler pub-cache'e çekiliyor..."
-          flutter pub cache add wakelock_plus
-          flutter pub cache add flutter_plugin_android_lifecycle
-          
-          echo "Pub-cache içindeki sinsi dosyalar temizleniyor..."
-          # Tüm build.gradle dosyalarında flutter değişkenine güvenmek yerine 35'i çakıyoruz
-          find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.compileSdkVersion/35/g' {} + 2>/dev/null || true
-          find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/flutter.targetSdkVersion/35/g' {} + 2>/dev/null || true
-          find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' {} + 2>/dev/null || true
-          find /home/runner/.pub-cache -name "build.gradle" -type f -exec sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' {} + 2>/dev/null || true
+          # 1. ÖNCE: gradle.properties oluştur (built-in Kotlin için)
+          mkdir -p android
+          cat > android/gradle.properties << EOF
+          android.builtInKotlin=false
+          kotlin.incremental=false
+          EOF
 
-          # 🛡️ Pusu Modu (V6 - Nükleer Seçenek)
-          while true; do
-            # 1. Bütün dosyaları bul
-            ALL_GRADLES=$(find /tmp -name "build.gradle" 2>/dev/null)
-            ALL_SETTINGS=$(find /tmp -name "settings.gradle" 2>/dev/null)
-
-            # 2. Kotlin Sürümünü GLOBAL olarak 2.1.0'a kitle
-            for s in $ALL_SETTINGS; do
-              sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.0"/g' "$s"
-              # Eğer plugin tanımı yoksa zorla ekle
-              if ! grep -q "org.jetbrains.kotlin.android" "$s"; then
-                sed -i '/plugins {/a \    id "org.jetbrains.kotlin.android" version "2.1.0" apply false' "$s"
-              fi
-            done
-
-            for g in $ALL_GRADLES; do
-              # 3. SDK ve Java 17 Ayarları (Tam Uyum)
-              sed -i 's/compileSdk = .*/compileSdk = 35/g' "$g"
-              sed -i 's/targetSdk = .*/targetSdk = 35/g' "$g"
-              sed -i 's/JavaVersion.VERSION_1_8/JavaVersion.VERSION_17/g' "$g"
-              sed -i 's/JavaVersion.VERSION_11/JavaVersion.VERSION_17/g' "$g"
-
-              # 4. EN KRİTİK KISIM: Wakelock gibi inatçı modüllere Kotlin 2.1.0 enjekte et
-              if grep -q "apply plugin: 'kotlin-android'" "$g" || grep -q "id 'org.jetbrains.kotlin.android'" "$g"; then
-                # build.gradle içinde ext.kotlin_version varsa güncelle
-                sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.1.0"/g' "$g"
-              fi
-
-              # 5. Metadata Hatasını Sustur ve K2'yi zorla kapat
-              if ! grep -q "Xskip-metadata-version-check" "$g"; then
-                if grep -q "kotlinOptions {" "$g"; then
-                  sed -i '/kotlinOptions {/a \        freeCompilerArgs += ["-Xskip-metadata-version-check", "-P", "kotlin.experimental.tryK2=false"]' "$g"
-                fi
-              fi
-            done
-            sleep 2
-          done &
-
-          # 3. PIP VE NUMPY YAPILANDIRMASI (Senin kazandığın cephe)
+          # 2. PIP VE NUMPY YAPILANDIRMASI
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << EOF
           [global]
@@ -141,9 +98,45 @@ jobs:
           mkdir -p ./libs
           pip download --only-binary :all: --platform manylinux2014_aarch64 --python-version 3.12 --dest ./libs numpy==1.26.4 || true
 
-          # 4. ANDROID KONFİGÜRASYONU
+          # 3. ANDROID KONFİGÜRASYONU
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+          # 4. PUSU MODU (Wakelock ve Kotlin için özel yama)
+          while true; do
+            # Wakelock'un build.gradle dosyasını bul
+            WAKELOCK_GRADLE=$(find /home/runner/.pub-cache -name "build.gradle" -path "*/wakelock_plus/*" 2>/dev/null | head -1)
+            SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
+            APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
+
+            # KRİTİK: Wakelock'un build.gradle'ından kotlin-android plugin'ini kaldır [citation:1]
+            if [ ! -z "$WAKELOCK_GRADLE" ]; then
+              echo "✅ Wakelock build.gradle bulundu: $WAKELOCK_GRADLE"
+              # "apply plugin: 'kotlin-android'" satırını sil
+              sed -i '/apply plugin.*kotlin-android/d' "$WAKELOCK_GRADLE"
+              sed -i '/id.*kotlin-android/d' "$WAKELOCK_GRADLE"
+              
+              # compileSdkVersion 35 yap
+              sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' "$WAKELOCK_GRADLE"
+            fi
+
+            # Settings.gradle'de Kotlin plugin'ini güncelle
+            if [ ! -z "$SETTINGS_GRADLE" ]; then
+              echo "✅ Settings.gradle bulundu: $SETTINGS_GRADLE"
+              # Kotlin 2.0.21 kullan (Flutter ile en uyumlu)
+              sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
+            fi
+
+            # App build.gradle'de metadata kontrolünü baypas et
+            if [ ! -z "$APP_BUILD" ]; then
+              echo "✅ App build.gradle bulundu: $APP_BUILD"
+              if ! grep -q "Xskip-metadata-version-check" "$APP_BUILD"; then
+                sed -i '/kotlinOptions {/a \        freeCompilerArgs += ["-Xskip-metadata-version-check"]' "$APP_BUILD"
+              fi
+            fi
+
+            sleep 2
+          done &
 
           # 5. FİNAL VURUŞ
           flet build apk --verbose \
