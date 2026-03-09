@@ -70,7 +70,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (ÇÖZÜM - Kotlin Metadata + Wakelock Sabitleme)
+      - name: Final Build (Wakelock - Phoenix Çözümü)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -95,49 +95,59 @@ jobs:
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-          # 3. PUSU MODU (Kesin Çözüm - ÇİFT YÖNLÜ MÜDAHALE)
+          # 3. PUSU MODU (Küllerinden Doğan Wakelock)
           while true; do
-            # --- Hedef 1: Wakelock'un build.gradle dosyası (AGP 9 Hatası) [citation:1]---
-            WAKELOCK_GRADLE=$(find /home/runner/.pub-cache -name "build.gradle" -path "*/wakelock_plus-1.4.0/*" 2>/dev/null | head -1)
-            if [ ! -z "$WAKELOCK_GRADLE" ]; then
-              echo "🎯 Wakelock build.gradle bulundu: $WAKELOCK_GRADLE"
+            WAKELOCK_DIR=$(find /home/runner/.pub-cache -type d -name "wakelock_plus-1.4.0" 2>/dev/null | head -1)
+            if [ ! -z "$WAKELOCK_DIR" ]; then
+              WAKELOCK_GRADLE="$WAKELOCK_DIR/android/build.gradle"
+              echo "🔥 Wakelock dir: $WAKELOCK_DIR"
+              echo "🔥 Wakelock gradle: $WAKELOCK_GRADLE"
               
-              # ÇÖZÜM 1: Kotlin plugin satırlarını tamamen kaldır
-              sed -i '/id "org.jetbrains.kotlin.android"/d' "$WAKELOCK_GRADLE"
-              sed -i '/apply plugin.*kotlin-android/d' "$WAKELOCK_GRADLE"
-              
-              # ÇÖZÜM 2: 'project.ext.flutter' tanımındaki değişkenleri sabit değerlerle değiştir (28. satır civarı)
-              sed -i 's/flutter\.compileSdkVersion/35/g' "$WAKELOCK_GRADLE"
-              sed -i 's/flutter\.minSdkVersion/21/g' "$WAKELOCK_GRADLE"
-              sed -i 's/flutter\.targetSdkVersion/35/g' "$WAKELOCK_GRADLE"
-              
-              # ÇÖZÜM 3: compileSdkVersion'ı doğrudan ekle
-              if ! grep -q "compileSdkVersion" "$WAKELOCK_GRADLE"; then
-                sed -i '/android {/a \    compileSdkVersion 35' "$WAKELOCK_GRADLE"
-              fi
-              
-              # ÇÖZÜM 4: minSdkVersion ve targetSdkVersion'ı defaultConfig'e ekle
-              if ! grep -q "minSdkVersion" "$WAKELOCK_GRADLE"; then
-                sed -i '/defaultConfig {/a \        minSdkVersion 21\n        targetSdkVersion 35' "$WAKELOCK_GRADLE"
-              fi
-              echo "✅ Wakelock build.gradle tamamen yamalandı!"
+              cat > "$WAKELOCK_GRADLE" << 'EOF'
+          group 'com.wakelock_plus'
+          version '1.0-SNAPSHOT'
+
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.0'
+              }
+          }
+
+          apply plugin: 'com.android.library'
+
+          project.ext.flutter = [
+              compileSdkVersion: 35,
+              minSdkVersion: 21,
+              targetSdkVersion: 35
+          ]
+
+          android {
+              namespace "com.wakelock_plus"
+              compileSdkVersion 35
+
+              defaultConfig {
+                  minSdkVersion 21
+                  targetSdkVersion 35
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF
+              echo "✅ Wakelock build.gradle küllerinden yeniden doğdu!"
+              break
             fi
 
-            # --- Hedef 2: Settings.gradle (Kotlin Sürümü) ---
             SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
             if [ ! -z "$SETTINGS_GRADLE" ] && ! grep -q "2.0.21" "$SETTINGS_GRADLE"; then
               sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
               echo "✅ Settings.gradle Kotlin 2.0.21'e güncellendi!"
-            fi
-
-            # --- Hedef 3: App build.gradle (Metadata Bypass) ---
-            APP_BUILD=$(find /tmp -name "build.gradle" -path "*/app/build.gradle" 2>/dev/null | head -1)
-            if [ ! -z "$APP_BUILD" ]; then
-              # Tüm Kotlin metadata uyumsuzluğunu baypas et [citation:2]
-              if ! grep -q "Xskip-metadata-version-check" "$APP_BUILD"; then
-                sed -i '/kotlinOptions {/a \        freeCompilerArgs += ["-Xskip-metadata-version-check"]' "$APP_BUILD"
-                echo "✅ App build.gradle metadata check bypass edildi!"
-              fi
             fi
 
             sleep 2
