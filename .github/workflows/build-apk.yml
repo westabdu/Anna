@@ -89,14 +89,14 @@ jobs:
           EOF
           echo "✅ Wakelock dosyası önceden hazırlandı, artık hata veremez!"
 
-      - name: Final Build (Agresif Pusu & Flet Kurulumu)
+      - name: Final Build (Flet Kurulumu ve Agresif Pusu)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. FLET VE GEREKLİ ARAÇLARI KUR (Eksik olan buydu!)
-          pip install flet
+          # 1. FLET'İ SİSTEME TANIT (EKSİK PARÇA BU!)
+          pip install flet --upgrade
 
           # 2. PIP VE NUMPY YAPILANDIRMASI
           mkdir -p ~/.pip
@@ -106,7 +106,7 @@ jobs:
           trusted-host = pypi.flet.dev
           EOF
 
-          # 3. AGRESİF PUSU (0.5 Saniye)
+          # 3. AGRESİF PUSU (Saniyede 2 kez kontrol)
           while true; do
             ALL_WAKELOCKS=$(find /home/runner /tmp -name "build.gradle" -path "*/wakelock_plus-1.4.0/*" 2>/dev/null)
             for W_GRADLE in $ALL_WAKELOCKS; do
@@ -123,11 +123,11 @@ jobs:
             sleep 0.5
           done &
 
-          # 4. FİNAL VURUŞ (SPEEDRUN MODU)
+          # 4. FİNAL VURUŞ (TRANCE MÜZİK DEVAM!)
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "0.4.${{ github.run_number }}"
-            
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
