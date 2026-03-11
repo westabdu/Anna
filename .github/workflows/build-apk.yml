@@ -70,7 +70,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Wakelock - Phoenix Çözümü)
+      - name: Final Build (Wakelock - Plugin Çözümü)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -95,21 +95,47 @@ jobs:
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-          # 3. PUSU MODU (Küllerinden Doğan Wakelock - V2)
+          # 3. PUSU MODU (Wakelock Plugin Çözümü)
           while true; do
+            # Proje dizinini bul
+            PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*/android" 2>/dev/null | head -1)
+            
+            if [ ! -z "$PROJECT_DIR" ]; then
+              echo "🔥 Proje dizini bulundu: $PROJECT_DIR"
+              
+              # app/build.gradle dosyasını bul ve namespace'i kontrol et
+              APP_GRADLE="$PROJECT_DIR/app/build.gradle"
+              if [ -f "$APP_GRADLE" ]; then
+                # Namespace ekle (yoksa)
+                if ! grep -q "namespace" "$APP_GRADLE"; then
+                  sed -i '/android {/a \    namespace "com.anna.mobile"' "$APP_GRADLE"
+                  echo "✅ app/build.gradle namespace eklendi!"
+                fi
+              fi
+              
+              # settings.gradle'de plugin'leri kontrol et
+              SETTINGS_GRADLE="$PROJECT_DIR/settings.gradle"
+              if [ -f "$SETTINGS_GRADLE" ]; then
+                # Kotlin sürümünü 2.0.21'e sabitle
+                sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
+                echo "✅ settings.gradle Kotlin sürümü güncellendi!"
+              fi
+              
+              break
+            fi
+            
+            # Wakelock dizinini bul ve yapılandır (yedek)
             WAKELOCK_DIR=$(find /home/runner/.pub-cache -type d -name "wakelock_plus-1.4.0" 2>/dev/null | head -1)
             if [ ! -z "$WAKELOCK_DIR" ]; then
               WAKELOCK_GRADLE="$WAKELOCK_DIR/android/build.gradle"
               WAKELOCK_MANIFEST="$WAKELOCK_DIR/android/src/main/AndroidManifest.xml"
               
-              echo "🔥 Wakelock dir bulundu: $WAKELOCK_DIR"
-              
-              # 1. HAMLE: Manifest'teki zehirli satırı söküp atıyoruz
+              # Manifest'te package varsa namespace'e çevir
               if [ -f "$WAKELOCK_MANIFEST" ]; then
                 sed -i 's/package="dev.fluttercommunity.plus.wakelock"//g' "$WAKELOCK_MANIFEST"
-                echo "✅ Manifest'teki eski package satırı imha edildi!"
+                echo "✅ Wakelock manifest düzeltildi!"
               fi
-
+              
               # 2. HAMLE: build.gradle'ı doğru namespace ile sıfırdan yazıyoruz
               echo "group 'dev.fluttercommunity.plus.wakelock'" > "$WAKELOCK_GRADLE"
               echo "version '1.0-SNAPSHOT'" >> "$WAKELOCK_GRADLE"
@@ -134,16 +160,6 @@ jobs:
               echo "✅ Wakelock build.gradle ve namespace jilet gibi oldu!"
               break
             fi
-
-            # Kotlin Versiyon Tamiri
-            SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
-            if [ ! -z "$SETTINGS_GRADLE" ] && ! grep -q "2.0.21" "$SETTINGS_GRADLE"; then
-              sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
-              echo "✅ Settings.gradle Kotlin 2.0.21'e güncellendi!"
-            fi
-
-            sleep 2
-          done &
 
           # 4. FİNAL VURUŞ
           flet build apk --verbose \
