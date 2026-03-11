@@ -70,7 +70,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Wakelock - Plugin Çözümü)
+      - name: Final Build (NumPy + Wakelock Çözümü)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -81,21 +81,20 @@ jobs:
           cat > ~/.pip/pip.conf << EOF
           [global]
           index-url = https://pypi.flet.dev
+          extra-index-url = https://pypi.org/simple
           trusted-host = pypi.flet.dev
           EOF
 
           cat > requirements.txt << EOF
           flet-embed==0.24.1
+          numpy==1.26.4
           EOF
-
-          mkdir -p ./libs
-          pip download --only-binary :all: --platform manylinux2014_aarch64 --python-version 3.12 --dest ./libs numpy==1.26.4 || true
 
           # 2. ANDROID KONFİGÜRASYONU
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-          # 3. PUSU MODU (Wakelock Plugin Çözümü)
+          # 3. PUSU MODU (Wakelock + Proje Düzenlemeleri)
           while true; do
             # Proje dizinini bul
             PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*/android" 2>/dev/null | head -1)
@@ -160,6 +159,16 @@ jobs:
               echo "✅ Wakelock build.gradle ve namespace jilet gibi oldu!"
               break
             fi
+
+            # Kotlin Versiyon Tamiri
+            SETTINGS_GRADLE=$(find /tmp -name "settings.gradle" 2>/dev/null | head -1)
+            if [ ! -z "$SETTINGS_GRADLE" ] && ! grep -q "2.0.21" "$SETTINGS_GRADLE"; then
+              sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
+              echo "✅ Settings.gradle Kotlin 2.0.21'e güncellendi!"
+            fi
+
+            sleep 2
+          done &
 
           # 4. FİNAL VURUŞ
           flet build apk --verbose \
