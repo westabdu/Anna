@@ -70,7 +70,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Wakelock - Eski Sürüm 1.2.8 - KESİN)
+      - name: Final Build (Wakelock - Eski Sürüm 1.2.8 - Numpy fix - KESİN)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
