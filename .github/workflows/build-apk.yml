@@ -70,7 +70,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (Wakelock - Eski Sürüm 1.2.8)
+      - name: Final Build (Wakelock - Eski Sürüm 1.2.8 - KESİN)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
@@ -92,7 +92,12 @@ jobs:
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-          # 3. PUSU MODU (Wakelock 1.2.8 Sabitleme)
+          # 3. ÖNCE WAKELOCK 1.2.8'İ PUB-CACHE'E İNDİR (Kritik!)
+          flutter pub cache add wakelock_plus
+          # 1.4.0'ı silip 1.2.8'i zorla indir
+          rm -rf /home/runner/.pub-cache/hosted/pub.dev/wakelock_plus-1.4.0 2>/dev/null || true
+
+          # 4. PUSU MODU (Wakelock 1.2.8 Sabitleme - Agresif)
           (
             while true; do
               # Proje dizinini bul
@@ -101,28 +106,38 @@ jobs:
               if [ ! -z "$PROJECT_DIR" ]; then
                 echo "🔥 Proje dizini bulundu: $PROJECT_DIR"
                 
-                # app/build.gradle namespace ekle
+                # 1. app/build.gradle namespace ekle
                 APP_GRADLE="$PROJECT_DIR/app/build.gradle"
                 if [ -f "$APP_GRADLE" ] && ! grep -q "namespace" "$APP_GRADLE"; then
                   sed -i '/android {/a \    namespace "com.anna.mobile"' "$APP_GRADLE"
                   echo "✅ app/build.gradle namespace eklendi!"
                 fi
                 
-                # settings.gradle Kotlin sabitleme
+                # 2. settings.gradle Kotlin sabitleme
                 SETTINGS_GRADLE="$PROJECT_DIR/settings.gradle"
                 if [ -f "$SETTINGS_GRADLE" ]; then
                   sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
                   echo "✅ settings.gradle Kotlin sürümü güncellendi!"
                 fi
 
-                # CRITICAL: pubspec.yaml bul ve dependency_overrides ekle
+                # 3. CRITICAL: pubspec.yaml bul ve dependency_overrides ekle (2 kez dene)
                 PUBSPEC=$(find "$PROJECT_DIR/.." -name "pubspec.yaml" 2>/dev/null | head -1)
                 if [ ! -z "$PUBSPEC" ]; then
                   echo "📄 pubspec.yaml bulundu: $PUBSPEC"
-                  if ! grep -q "dependency_overrides" "$PUBSPEC"; then
+                  
+                  # Önce dependency_overrides varsa içindeki wakelock_plus'ı güncelle
+                  if grep -q "dependency_overrides" "$PUBSPEC"; then
+                    sed -i 's/  wakelock_plus:.*/  wakelock_plus: 1.2.8/g' "$PUBSPEC"
+                  else
                     echo -e "\ndependency_overrides:\n  wakelock_plus: 1.2.8" >> "$PUBSPEC"
-                    echo "✅ dependency_overrides ile wakelock_plus 1.2.8'e sabitlendi!"
                   fi
+                  echo "✅ dependency_overrides ile wakelock_plus 1.2.8'e sabitlendi!"
+                fi
+                
+                # 4. 1.4.0'ı temizlemek için ek bir güvence
+                if [ -d "/home/runner/.pub-cache/hosted/pub.dev/wakelock_plus-1.4.0" ]; then
+                  rm -rf "/home/runner/.pub-cache/hosted/pub.dev/wakelock_plus-1.4.0"
+                  echo "❌ wakelock_plus 1.4.0 zorla silindi!"
                 fi
                 
                 break
@@ -131,7 +146,7 @@ jobs:
             done
           ) &
 
-          # 4. FİNAL VURUŞ
+          # 5. FİNAL VURUŞ
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "0.4.${{ github.run_number }}"
