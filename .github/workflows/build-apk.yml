@@ -84,10 +84,6 @@ jobs:
           trusted-host = pypi.flet.dev
           EOF
 
-          cat > requirements.txt << 'EOF'
-          flet-embed==0.24.1
-          EOF
-
           # 2. ANDROID KONFİGÜRASYONU
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
