@@ -2,7 +2,7 @@
 name = "anna_mobile"
 version = "0.4.0"
 description = "Adaptive Nöro Network Asistanı Mobil"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [
     { name = "westabdu", email = "westabdu@users.noreply.github.com" }
 ]
