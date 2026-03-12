@@ -70,13 +70,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet==0.24.1
 
-      - name: Final Build (NumPy + Wakelock Çözümü - V3)
+      - name: Final Build (Wakelock - GitHub Issue #117 Resmi Çözüm)
         env:
           FLUTTER_SUPPRESS_ANALYTICS: true
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. PIP YAPILANDIRMASI (CRITICAL)
+          # 1. PIP YAPILANDIRMASI
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << 'EOF'
           [global]
@@ -92,15 +92,16 @@ jobs:
           export SERIOUS_PYTHON_CONFIG='{"android": {"ndk_version": "25.2.9519653", "arch": "arm64-v8a"}}'
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-          # 3. PUSU MODU (Wakelock + Proje Düzenlemeleri)
-          # Bu blok flet build işlemi arka planda çalışırken dosyaları yakalamak içindir
+          # 3. PUSU MODU (Wakelock - GitHub Issue #117 Resmi Çözüm)
           (
             while true; do
+              # Proje dizinini bul
               PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*/android" 2>/dev/null | head -1)
+              
               if [ ! -z "$PROJECT_DIR" ]; then
                 echo "🔥 Proje dizini bulundu: $PROJECT_DIR"
                 
-                # app/build.gradle düzenleme
+                # app/build.gradle namespace ekle
                 APP_GRADLE="$PROJECT_DIR/app/build.gradle"
                 if [ -f "$APP_GRADLE" ] && ! grep -q "namespace" "$APP_GRADLE"; then
                   sed -i '/android {/a \    namespace "com.anna.mobile"' "$APP_GRADLE"
@@ -114,29 +115,65 @@ jobs:
                   echo "✅ settings.gradle Kotlin sürümü güncellendi!"
                 fi
 
-                # Wakelock düzeltme
+                # Wakelock düzeltme - echo ile satır satır yaz (YAML uyumlu)
                 WAKELOCK_DIR=$(find /home/runner/.pub-cache -type d -name "wakelock_plus*" 2>/dev/null | head -1)
                 if [ ! -z "$WAKELOCK_DIR" ]; then
                   WAKELOCK_GRADLE="$WAKELOCK_DIR/android/build.gradle"
                   if [ -f "$WAKELOCK_GRADLE" ]; then
-                    cat > "$WAKELOCK_GRADLE" << 'EOF'
-          group 'dev.fluttercommunity.plus.wakelock'
-          version '1.0-SNAPSHOT'
-          apply plugin: 'com.android.library'
-          android {
-              namespace "dev.fluttercommunity.plus.wakelock"
-              compileSdkVersion 35
-              defaultConfig {
-                  minSdkVersion 21
-                  targetSdkVersion 35
-              }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-          }
-          EOF
-                    echo "✅ Wakelock build.gradle yeniden yazıldı!"
+                    echo "group 'dev.fluttercommunity.plus.wakelock'" > "$WAKELOCK_GRADLE"
+                    echo "version '1.0-SNAPSHOT'" >> "$WAKELOCK_GRADLE"
+                    echo "" >> "$WAKELOCK_GRADLE"
+                    echo "buildscript {" >> "$WAKELOCK_GRADLE"
+                    echo "    repositories {" >> "$WAKELOCK_GRADLE"
+                    echo "        google()" >> "$WAKELOCK_GRADLE"
+                    echo "        mavenCentral()" >> "$WAKELOCK_GRADLE"
+                    echo "    }" >> "$WAKELOCK_GRADLE"
+                    echo "    dependencies {" >> "$WAKELOCK_GRADLE"
+                    echo "        classpath 'com.android.tools.build:gradle:8.1.0'" >> "$WAKELOCK_GRADLE"
+                    echo "    }" >> "$WAKELOCK_GRADLE"
+                    echo "}" >> "$WAKELOCK_GRADLE"
+                    echo "" >> "$WAKELOCK_GRADLE"
+                    echo "rootProject.allprojects {" >> "$WAKELOCK_GRADLE"
+                    echo "    repositories {" >> "$WAKELOCK_GRADLE"
+                    echo "        google()" >> "$WAKELOCK_GRADLE"
+                    echo "        mavenCentral()" >> "$WAKELOCK_GRADLE"
+                    echo "    }" >> "$WAKELOCK_GRADLE"
+                    echo "}" >> "$WAKELOCK_GRADLE"
+                    echo "" >> "$WAKELOCK_GRADLE"
+                    echo "apply plugin: 'com.android.library'" >> "$WAKELOCK_GRADLE"
+                    echo "" >> "$WAKELOCK_GRADLE"
+                    echo "android {" >> "$WAKELOCK_GRADLE"
+                    echo "    namespace \"dev.fluttercommunity.plus.wakelock\"" >> "$WAKELOCK_GRADLE"
+                    echo "    compileSdkVersion 35" >> "$WAKELOCK_GRADLE"
+                    echo "" >> "$WAKELOCK_GRADLE"
+                    echo "    defaultConfig {" >> "$WAKELOCK_GRADLE"
+                    echo "        minSdkVersion 21" >> "$WAKELOCK_GRADLE"
+                    echo "        targetSdkVersion 35" >> "$WAKELOCK_GRADLE"
+                    echo "        testInstrumentationRunner \"androidx.test.runner.AndroidJUnitRunner\"" >> "$WAKELOCK_GRADLE"
+                    echo "    }" >> "$WAKELOCK_GRADLE"
+                    echo "" >> "$WAKELOCK_GRADLE"
+                    echo "    compileOptions {" >> "$WAKELOCK_GRADLE"
+                    echo "        sourceCompatibility JavaVersion.VERSION_17" >> "$WAKELOCK_GRADLE"
+                    echo "        targetCompatibility JavaVersion.VERSION_17" >> "$WAKELOCK_GRADLE"
+                    echo "    }" >> "$WAKELOCK_GRADLE"
+                    echo "" >> "$WAKELOCK_GRADLE"
+                    echo "    testOptions {" >> "$WAKELOCK_GRADLE"
+                    echo "        unitTests.all {" >> "$WAKELOCK_GRADLE"
+                    echo "            testLogging {" >> "$WAKELOCK_GRADLE"
+                    echo "               events \"passed\", \"skipped\", \"failed\", \"standardOut\", \"standardError\"" >> "$WAKELOCK_GRADLE"
+                    echo "               outputs.upToDateWhen {false}" >> "$WAKELOCK_GRADLE"
+                    echo "               showStandardStreams true" >> "$WAKELOCK_GRADLE"
+                    echo "            }" >> "$WAKELOCK_GRADLE"
+                    echo "        }" >> "$WAKELOCK_GRADLE"
+                    echo "    }" >> "$WAKELOCK_GRADLE"
+                    echo "}" >> "$WAKELOCK_GRADLE"
+                    echo "" >> "$WAKELOCK_GRADLE"
+                    echo "dependencies {" >> "$WAKELOCK_GRADLE"
+                    echo "    implementation 'androidx.annotation:annotation:1.7.0'" >> "$WAKELOCK_GRADLE"
+                    echo "    testImplementation 'junit:junit:4.13.2'" >> "$WAKELOCK_GRADLE"
+                    echo "}" >> "$WAKELOCK_GRADLE"
+                    
+                    echo "✅ Wakelock build.gradle GitHub Issue #117'ye göre düzeltildi!"
                   fi
                 fi
                 break
