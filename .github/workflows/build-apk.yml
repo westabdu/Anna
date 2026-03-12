@@ -101,6 +101,14 @@ jobs:
               
               if [ ! -z "$PROJECT_DIR" ]; then
                 echo "🔥 Proje dizini bulundu: $PROJECT_DIR"
+
+                # 1. ÖNCE: Numpy 2.2.2'yi elle indir ve kur (CRITICAL!)
+                echo "📦 NumPy 2.2.2 indiriliyor ve kuruluyor..."
+                python -m pip install --upgrade pip
+                mkdir -p ./wheels
+                pip download --only-binary :all: --platform manylinux2014_aarch64 --python-version 3.11 --dest ./wheels numpy==2.2.2
+                pip install --find-links ./wheels numpy==2.2.2
+                echo "✅ NumPy 2.2.2 kuruldu!"
                 
                 # 1. app/build.gradle namespace ekle
                 APP_GRADLE="$PROJECT_DIR/app/build.gradle"
