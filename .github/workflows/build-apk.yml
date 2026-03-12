@@ -110,21 +110,21 @@ jobs:
                 pip install --find-links ./wheels numpy==2.2.2
                 echo "✅ NumPy 2.2.2 kuruldu!"
                 
-                # 1. app/build.gradle namespace ekle
+                # 2. app/build.gradle namespace ekle
                 APP_GRADLE="$PROJECT_DIR/app/build.gradle"
                 if [ -f "$APP_GRADLE" ] && ! grep -q "namespace" "$APP_GRADLE"; then
                   sed -i '/android {/a \    namespace "com.anna.mobile"' "$APP_GRADLE"
                   echo "✅ app/build.gradle namespace eklendi!"
                 fi
                 
-                # 2. settings.gradle Kotlin sabitleme
+                # 3. settings.gradle Kotlin sabitleme
                 SETTINGS_GRADLE="$PROJECT_DIR/settings.gradle"
                 if [ -f "$SETTINGS_GRADLE" ]; then
                   sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.21"/g' "$SETTINGS_GRADLE"
                   echo "✅ settings.gradle Kotlin sürümü güncellendi!"
                 fi
 
-                # 3. CRITICAL: pubspec.yaml bul ve dependency_overrides ekle (2 kez dene)
+                # 4. CRITICAL: pubspec.yaml bul ve dependency_overrides ekle (2 kez dene)
                 PUBSPEC=$(find "$PROJECT_DIR/.." -name "pubspec.yaml" 2>/dev/null | head -1)
                 if [ ! -z "$PUBSPEC" ]; then
                   echo "📄 pubspec.yaml bulundu: $PUBSPEC"
@@ -138,11 +138,19 @@ jobs:
                   echo "✅ dependency_overrides ile wakelock_plus 1.2.8'e sabitlendi!"
                 fi
                 
-                # 4. 1.4.0'ı temizlemek için ek bir güvence
+                # 5. 1.4.0'ı temizlemek için ek bir güvence
                 if [ -d "/home/runner/.pub-cache/hosted/pub.dev/wakelock_plus-1.4.0" ]; then
                   rm -rf "/home/runner/.pub-cache/hosted/pub.dev/wakelock_plus-1.4.0"
                   echo "❌ wakelock_plus 1.4.0 zorla silindi!"
                 fi
+
+                # 6. libc++_shared.so'yu APK'ya eklemek için Gradle'ı yamala
+                if [ -f "$APP_GRADLE" ]; then
+                  if ! grep -q "packagingOptions" "$APP_GRADLE"; then
+                      sed -i '/android {/a \    packagingOptions {\n        pickFirsts = ["**/*.so"]\n        doNotStrip = ["**/*.so"]\n    }' "$APP_GRADLE"
+                      echo "✅ packagingOptions eklendi (libc++_shared.so için)!"
+                    fi
+                  fi
                 
                 break
               fi

@@ -52,3 +52,8 @@ permissions = [
 min_sdk_version = 21
 target_sdk_version = 33
 ndk_version = "25.1.8937393"
+
+# 🚨 KRİTİK: C++ paylaşımlı kütüphaneyi ekle
+[tool.flet.android.packaging_options]
+doNotStrip = "**/*.so"
+pickFirsts = ["**/*.so"]
