@@ -76,7 +76,7 @@ jobs:
           PYTHONUTF8: 1
           FLET_NON_INTERACTIVE: "true"
         run: |
-          # 1. PIP VE NUMPY YAPILANDIRMASI (CRITICAL)
+          # 1. PIP YAPILANDIRMASI (CRITICAL)
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << 'EOF'
           [global]
@@ -86,7 +86,6 @@ jobs:
 
           cat > requirements.txt << 'EOF'
           flet-embed==0.24.1
-          numpy==1.26.4
           EOF
 
           # 2. ANDROID KONFİGÜRASYONU
