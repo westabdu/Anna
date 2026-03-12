@@ -106,7 +106,7 @@ jobs:
                 echo "📦 NumPy 2.2.2 indiriliyor ve kuruluyor..."
                 python -m pip install --upgrade pip
                 mkdir -p ./wheels
-                pip download --only-binary :all: --platform manylinux2014_aarch64 --python-version 3.11 --dest ./wheels numpy==2.2.2
+                pip download --only-binary :all: --platform manylinux2014_aarch64 --python-version 3.12 --dest ./wheels numpy==2.2.2
                 pip install --find-links ./wheels numpy==2.2.2
                 echo "✅ NumPy 2.2.2 kuruldu!"
                 
