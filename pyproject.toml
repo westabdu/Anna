@@ -9,7 +9,6 @@ authors = [
 dependencies = [
     "flet==0.26.0",
     "opencv-python-headless",
-    "mediapipe==0.10.21",
     "easyocr",
     "pytesseract==0.3.10",
     "pyzbar==0.1.9",
