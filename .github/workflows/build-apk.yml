@@ -68,7 +68,7 @@ jobs:
       - name: Install Flet
         run: |
           python -m pip install --upgrade pip
-          pip install flet==0.24.1
+          pip install flet==0.25.2
 
       - name: Final Build (Wakelock - Eski Sürüm 1.2.8 - Numpy fix - KESİN)
         env:
