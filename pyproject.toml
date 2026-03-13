@@ -8,21 +8,20 @@ authors = [
 ]
 dependencies = [
     "flet==0.26.0",
-    "pyzbar==0.1.9",
-    "SpeechRecognition==3.10.4",
-    "gTTS==2.5.1",
-    "edge-tts==6.1.13",
-    "pygame==2.5.2",
-    "pvporcupine==3.0.3",
-    "sounddevice==0.4.6",
-    "soundfile==0.12.1",
+    "SpeechRecognition",
+    "gTTS",
+    "edge-tts",
+    "pygame",
+    "pvporcupine",
+    "sounddevice",
+    "soundfile",
     "google-generativeai",
     "groq",
-    "pillow==11.1.0",
-    "python-dotenv==1.0.1",
-    "requests==2.32.3",
-    "psutil==7.0.0",
-    "googletrans==4.0.2"
+    "pillow",
+    "python-dotenv",
+    "requests",
+    "psutil",
+    "googletrans"
 ]
 
 [tool.flet]
