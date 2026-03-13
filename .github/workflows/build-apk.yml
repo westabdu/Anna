@@ -151,8 +151,38 @@ jobs:
             done
           ) &
 
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake python3-dev
+                (
+            while true; do
+              PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*/android" 2>/dev/null | head -1)
+              
+              if [ ! -z "$PROJECT_DIR" ]; then
+                echo "🔥 Proje dizini bulundu: $PROJECT_DIR"
+
+                # 1. MediaPipe 0.10.18'i elle indir
+                echo "📦 MediaPipe 0.10.18 indiriliyor..."
+                mkdir -p ./wheels
+                WHEEL_URL="https://files.pythonhosted.org/packages/db/57/0268448651884328e18ec3391d374ec78280f5f84813583151b03372f854/mediapipe-0.10.18-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+                
+                wget -O ./wheels/mediapipe_v8a.whl "$WHEEL_URL"
+
+                # 2. Kurulumu yap
+                pip install ./wheels/mediapipe_v8a.whl
+                echo "✅ MediaPipe 0.10.18 kuruldu!"
+
+                # 3. wakelock_plus ve diğer Gradle yamaların buraya devam etsin
+                APP_GRADLE="$PROJECT_DIR/app/build.gradle"
+                if [ -f "$APP_GRADLE" ]; then
+                  if ! grep -q "packagingOptions" "$APP_GRADLE"; then
+                    sed -i '/android {/a \    packagingOptions {\n        pickFirsts = ["**/*.so"]\n        doNotStrip = ["**/*.so"]\n    }' "$APP_GRADLE"
+                    echo "✅ packagingOptions eklendi (libc++_shared.so için)!"
+                  fi
+                fi
+                
+                break
+              fi
+              sleep 2
+            done
+          ) &
 
           # 5. FİNAL VURUŞ
           flet build apk --verbose \
