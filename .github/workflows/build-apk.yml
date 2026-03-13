@@ -81,6 +81,7 @@ jobs:
           cat > ~/.pip/pip.conf << 'EOF'
           [global]
           index-url = https://pypi.flet.dev
+          extra-index-url = https://pypi.org/simple
           trusted-host = pypi.flet.dev
           EOF
 
