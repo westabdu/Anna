@@ -1,7 +1,4 @@
 flet==0.26.0
-https://pypi.flet.dev/packages/opencv-python-headless/opencv_python_headless-4.10.0.84-cp312-cp312-android_24_arm64_v8a.whl
-easyocr
-pytesseract==0.3.10
 pyzbar==0.1.9
 SpeechRecognition==3.10.4
 gTTS==2.5.1

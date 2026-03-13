@@ -184,6 +184,19 @@ jobs:
             done
           ) &
 
+          # OpenCV Kurulumu
+          echo "📦 OpenCV 4.10.0 indiriliyor..."
+          WHEEL_OPENCV="https://pypi.flet.dev/packages/opencv-python-headless/opencv_python_headless-4.10.0.84-cp312-cp312-android_24_arm64_v8a.whl"
+
+          wget -O ./wheels/opencv_android.whl "$WHEEL_OPENCV"
+
+          if [ -f "./wheels/opencv_android.whl" ]; then
+              pip install ./wheels/opencv_android.whl
+              echo "✅ OpenCV 4.10.0 başarıyla kuruldu!"
+          else
+              echo "❌ OpenCV indirilemedi, build devam ediyor..."
+          fi
+
           # 5. FİNAL VURUŞ
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
