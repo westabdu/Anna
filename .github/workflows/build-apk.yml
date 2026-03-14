@@ -218,7 +218,7 @@ jobs:
             done
           ) &
 
-          # 1. Flet'in indirme yaptığı dizini önceden biz oluşturalım
+          # 8. Flet'in indirme yaptığı dizini önceden biz oluşturalım
               echo "🔨 Flet'in inatçı damarını kesiyoruz..."
               
               # 1. Klasörleri oluştur
@@ -246,8 +246,26 @@ jobs:
               # 6. Kontrol
               echo "🎯 Sahte 3.27.3 üzerinden çalışan gerçek sürüm:"
               /home/runner/flutter/3.27.3/bin/flutter --version
+
+              # 7. WEBVIEW SÜRÜM TERÖRÜNÜ BİTİRME (DART 3.7 SABİTLEME)
+              echo "💉 WebView paketi için Dart sürümü 3.7'ye düşürülüyor..."
               
-              # 7. GERÇEK FLET BUILD (BURADA BAŞLIYOR)
+              # Build başlamadan önce paketi önbelleğe alalım ki dosyayı bulabilelim
+              /home/runner/flutter/3.27.3/bin/flutter pub cache add webview_flutter_android:4.10.13
+              
+              # Paketin içindeki tüm Dart dosyalarında 3.9 veya 3.8 yazan yerleri 3.7 yap
+              WEBVIEW_PATH=$(find /home/runner/.pub-cache/hosted/pub.dev -type d -name "webview_flutter_android-4.10.13" | head -1)
+              
+              if [ ! -z "$WEBVIEW_PATH" ]; then
+                echo "✅ Paket bulundu: $WEBVIEW_PATH"
+                # Dosyaların başındaki @dart=3.9 ifadelerini 3.7 yap
+                find "$WEBVIEW_PATH" -name "*.dart" -exec sed -i 's/@dart=3.[8-9]/@dart=3.7/g' {} +
+                # pubspec.yaml içindeki sınırı da 3.7'ye çek
+                sed -i 's/sdk: ">=3.[8-9].0/sdk: ">=3.7.0/g' "$WEBVIEW_PATH/pubspec.yaml"
+                echo "✅ Dil versiyonu 3.7 olarak mühürlendi."
+              fi
+              
+              # 9. GERÇEK FLET BUILD (BURADA BAŞLIYOR)
               echo "🚀 Flet Build APK başlatılıyor..."
               flet build apk --verbose \
                 --build-number ${{ github.run_number }} \
