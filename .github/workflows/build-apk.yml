@@ -39,7 +39,13 @@ jobs:
         with:
           flutter-version: '3.29.3'
           channel: 'stable'
-          cache: true
+          cache: tru
+
+      - name: Force Flet to use current Flutter
+        run: |
+          # Flet'in indirmeye çalışacağı yere biz 3.29'un sembolik linkini koyuyoruz
+          mkdir -p ~/.flet/bin/flutter
+          ln -s $FLUTTER_ROOT ~/.flet/bin/flutter/bin
 
       - name: Setup Android SDK
         run: |
@@ -212,7 +218,11 @@ jobs:
             done
           ) &
 
-          # 7. FİNAL VURUŞ
+          # 7. FİNAL VURUŞ (FLUTTER 3.29 ZORLAMASIYLA)
+          # Flet'in kendi kafasına göre flutter indirmesini engellemek için PATH'i en başa alıyoruz
+          export PATH="$FLUTTER_ROOT/bin:$PATH"
+          
+          # Flet'e sistemdeki Flutter'ı kullanması gerektiğini hatırlatalım
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "0.4.${{ github.run_number }}"
