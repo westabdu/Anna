@@ -219,25 +219,42 @@ jobs:
           ) &
 
           # 1. Flet'in indirme yaptığı dizini önceden biz oluşturalım
-              echo "🚧 Flet'in gizli yolunu kapatıyoruz..."
-              mkdir -p /home/runner/flutter
-              rm -rf /home/runner/flutter/3.27.3 # Eğer varsa temizle
+              echo "🔨 Flet'in inatçı damarını kesiyoruz..."
               
-              # 2. KRİTİK HAMLE: 3.29'u 3.27.3 klasörüymüş gibi gösterelim
-              # $FLUTTER_ROOT (3.29.3) -> /home/runner/flutter/3.27.3
-              ln -sf "$FLUTTER_ROOT" /home/runner/flutter/3.27.3
+              # 1. Flet'in gitmeye çalıştığı dizini tertemiz oluştur
+              mkdir -p /home/runner/flutter/3.27.3/bin
               
-              # 3. Environment Variables (Flet'in aklını karıştıralım)
+              # 2. KRİTİK: Sembolik link yerine 'Wrapper' (Yönlendirici) yazalım
+              # Flet /home/runner/flutter/3.27.3/bin/flutter'ı çağırdığında 
+              # aslında bizim 3.29'u çalıştıracak.
+              
+              cat > /home/runner/flutter/3.27.3/bin/flutter << EOF
+              #!/bin/bash
+              exec $FLUTTER_ROOT/bin/flutter "\$@"
+              EOF
+              
+              cat > /home/runner/flutter/3.27.3/bin/dart << EOF
+              #!/bin/bash
+              exec $FLUTTER_ROOT/bin/dart "\$@"
+              EOF
+              
+              # 3. Çalıştırma izinlerini ver
+              chmod +x /home/runner/flutter/3.27.3/bin/flutter
+              chmod +x /home/runner/flutter/3.27.3/bin/dart
+              
+              # 4. Flet'in "yüklendi" sanması için bir işaret bırak (dummy file)
+              touch /home/runner/flutter/3.27.3/.complete
+              
+              # 5. Environment Variables
               export FLUTTER_ROOT="$FLUTTER_ROOT"
               export PATH="$FLUTTER_ROOT/bin:$PATH"
               export FLET_CLI_SKIP_FLUTTER_DOCTOR=true
               
-              # 4. Kontrol
-              echo "📍 Aktif Flutter Yolu:"
-              which flutter
-              flutter --version
+              # 6. Kontrol
+              echo "🎯 Sahte 3.27.3 üzerinden çalışan gerçek sürüm:"
+              /home/runner/flutter/3.27.3/bin/flutter --version
               
-              # 5. Gerçek Build
+              # 7. Gerçek Build
               flet build apk --verbose \
                 --build-number ${{ github.run_number }} \
                 --build-version "0.4.${{ github.run_number }}"
