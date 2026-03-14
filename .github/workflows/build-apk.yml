@@ -288,31 +288,41 @@ jobs:
             done
           ) &
 
-          # 10. WEBVIEW VE SÜRÜM OVERRIDE İMPARATOR PUSU
+          # 10. WEBVIEW 4.8.0 SABİTLEME - NİHAİ ÇÖZÜM
           (
-            echo "🕵️ İmparator Pusu kuruldu, Flet'in gizli dosyaları bekleniyor..."
+            echo "🕵️ İmparator Pusu (DeepSeek Edition) kuruldu..."
+            
+            # Flet'in oluşturduğu geçici pubspec.yaml dosyasını bulana kadar bekle
             while true; do
-              # Flet'in oluşturduğu geçici pubspec.yaml dosyasını bul
               PUBSPEC=$(find /tmp -name "pubspec.yaml" 2>/dev/null | grep "flet_flutter_build" | head -1)
               
               if [ ! -z "$PUBSPEC" ]; then
-                # Eğer dosya bulunduysa ve henüz override eklenmemişse
-                if ! grep -q "dependency_overrides" "$PUBSPEC"; then
-                  echo "🎯 Gizli pubspec yakalandı: $PUBSPEC"
-                  
-                  # Dosyanın sonuna override kurallarını mühürle
-                  echo "" >> "$PUBSPEC"
-                  echo "dependency_overrides:" >> "$PUBSPEC"
-                  echo "  webview_flutter_android: 4.8.0" >> "$PUBSPEC"
-                  
-                  echo "✅ WebView 4.8.0 zorlaması pubspec içine enjekte edildi!"
-                  # İşlem başarılı, dosyayı mühürledik, döngüden çıkabiliriz
-                  break
+                echo "🎯 Geçici pubspec yakalandı: $PUBSPEC"
+                
+                # Önce eski satırları (varsa) temizle ve override bloğunu enjekte et
+                echo "" >> "$PUBSPEC"
+                echo "dependency_overrides:" >> "$PUBSPEC"
+                echo "  webview_flutter_android: 4.8.0" >> "$PUBSPEC"
+                echo "  webview_flutter: 4.8.0" >> "$PUBSPEC"
+                
+                # Varsa lock dosyasını sil ki yeni sürümü çekmeye zorlansın
+                LOCKFILE=$(dirname "$PUBSPEC")/pubspec.lock
+                if [ -f "$LOCKFILE" ]; then
+                  rm "$LOCKFILE"
+                  echo "🗑️ pubspec.lock temizlendi."
                 fi
+                
+                echo "✅ WebView 4.8.0 zorlaması başarıyla enjekte edildi!"
+                break
               fi
-              sleep 0.5 # Yarım saniyede bir kontrol et (çok hızlı olmalıyız)
+              sleep 0.5
             done
           ) &
+
+          # 11. ÖN TEMİZLİK (CACHELERİ BOŞALT)
+          echo "🧹 Mevcut sorunlu paketler temizleniyor..."
+          rm -rf /home/runner/.pub-cache/hosted/pub.dev/webview_flutter_android-*
+          /home/runner/flutter/3.27.3/bin/flutter pub cache add webview_flutter_android:4.8.0 || true
 
           # 11. GERÇEK FLET BUILD (BU SATIRSIZ OLMAZ!)
           export FLUTTER_ROOT="$FLUTTER_ROOT"
