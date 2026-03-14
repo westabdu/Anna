@@ -267,7 +267,7 @@ jobs:
                 echo "⚠️ WebView paketi henüz indirilmemiş, build sırasında pusuya yatılacak."
               fi
 
-          # 10. WEBVIEW DİNAMİK PUSU (GÜNCELLENMİŞ)
+          # 9. WEBVIEW DİNAMİK PUSU (GÜNCELLENMİŞ)
           (
             echo "🕵️ WebView pususu kuruldu, sinsi dosyalar bekleniyor..."
             while true; do
@@ -287,6 +287,13 @@ jobs:
               sleep 1
             done
           ) &
+
+          # 10. WEBVIEW SÜRÜMÜNÜ ZORLA DÜŞÜR (HATA VERMEYEN YÖNTEM)
+          echo "📝 pyproject.toml içine WebView override ekleniyor..."
+          echo "" >> pyproject.toml
+          echo "[tool.flet.flutter.pubspec.dependency_overrides]" >> pyproject.toml
+          echo 'webview_flutter_android = "4.8.0"' >> pyproject.toml
+          echo "✅ webview_flutter_android 4.8.0 sürümüne mühürlendi!"
 
           # 11. GERÇEK FLET BUILD (BU SATIRSIZ OLMAZ!)
           export FLUTTER_ROOT="$FLUTTER_ROOT"
