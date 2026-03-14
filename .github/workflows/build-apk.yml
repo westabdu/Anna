@@ -266,12 +266,37 @@ jobs:
               else
                 echo "⚠️ WebView paketi henüz indirilmemiş, build sırasında pusuya yatılacak."
               fi
+
+          # 10. WEBVIEW DİNAMİK PUSU (GÜNCELLENMİŞ)
+          (
+            echo "🕵️ WebView pususu kuruldu, sinsi dosyalar bekleniyor..."
+            while true; do
+              # Flet'in oluşturabileceği tüm geçici dizinlerde tara
+              SİNSİ_DOSYA=$(find /tmp /home/runner -name "weak_reference_utils.dart" 2>/dev/null | grep "webview_flutter_android" | head -1)
               
-              # 9. GERÇEK FLET BUILD (BURADA BAŞLIYOR)
-              echo "🚀 Flet Build APK başlatılıyor..."
-              flet build apk --verbose \
-                --build-number ${{ github.run_number }} \
-                --build-version "0.4.${{ github.run_number }}"
+              if [ ! -z "$SİNSİ_DOSYA" ]; then
+                if grep -q "@dart=3.9" "$SİNSİ_DOSYA"; then
+                  echo "🎯 Sinsi dosya yakalandı: $SİNSİ_DOSYA"
+                  PAKET_DIZINI=$(dirname $(dirname $(dirname "$SİNSİ_DOSYA")))
+                  find "$PAKET_DIZINI" -name "*.dart" -exec sed -i 's/@dart=3.[8-9]/@dart=3.7/g' {} +
+                  sed -i 's/sdk: ">=3.[8-9].0/sdk: ">=3.7.0/g' "$PAKET_DIZINI/pubspec.yaml" 2>/dev/null || true
+                  echo "✅ WebView terörü dinamik olarak durduruldu!"
+                  break
+                fi
+              fi
+              sleep 1
+            done
+          ) &
+
+          # 11. GERÇEK FLET BUILD (BU SATIRSIZ OLMAZ!)
+          export FLUTTER_ROOT="$FLUTTER_ROOT"
+          export PATH="$FLUTTER_ROOT/bin:$PATH"
+          export FLET_CLI_SKIP_FLUTTER_DOCTOR=true
+          
+          echo "🚀 Flet Build APK başlatılıyor..."
+          flet build apk --verbose \
+            --build-number ${{ github.run_number }} \
+            --build-version "0.4.${{ github.run_number }}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
