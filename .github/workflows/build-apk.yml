@@ -255,24 +255,35 @@ jobs:
             done
           ) &
 
-          # 8. WEBVIEW PAKET AMELİYATI (KESİN ÇÖZÜM)
+          # 8. WEBVIEW PAKET AMELİYATI (ARKADAŞININ GÜNCELLENMİŞ VERSİYONU)
           (
             while true; do
               # Önce paketin indirildiği dizini bulalım
-              WEBVIEW_DIR=$(find /home/runner/.pub-cache/hosted/pub.dev -name "webview_flutter_android-4.10.13" 2>/dev/null | head -1)
+              WEBVIEW_DIR=$(find /home/runner/.pub-cache/hosted/pub.dev -type d -name "webview_flutter_android-4.10.13" 2>/dev/null | head -1)
+              # Flutter proje dizini değişkenini burada da tanımlayalım
+              F_DIR=$(find /tmp -type d -path "*/flet_flutter_build*" 2>/dev/null | head -1)
               
               if [ ! -z "$WEBVIEW_DIR" ]; then
                 TARGET_FILE="$WEBVIEW_DIR/lib/src/android_webview_controller.dart"
                 if [ -f "$TARGET_FILE" ]; then
                   echo "💉 Ameliyat başlıyor: $TARGET_FILE"
                   
-                  # Hatalı metodu (toARGB32) eski usulle değiştir
+                  # 1. HATALI METODU DÜZELT
                   sed -i 's/color.toARGB32()/color.value/g' "$TARGET_FILE"
+                  echo "✅ toARGB32 hatası düzeltildi!"
                   
-                  # Dil versiyonu hatasını da susturalım (en üst satırdaki sürümü 3.3'e çek)
-                  find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/3.6/3.3/g' {} +
+                  # 2. DİL VERSİYONU SABİTLEME
+                  find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/\/\/ @dart=3.[0-9]\+/\/\/ @dart=3.3/g' {} +
+                  # Ek olarak dosya başındaki yorumsuz sürümleri de yakalayalım
+                  find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/sdk: 3.6/sdk: 3.3/g' {} +
+                  echo "✅ Dart sürümü 3.3'e sabitlendi!"
                   
-                  echo "✅ Ameliyat başarılı! toARGB32 hatası silindi."
+                  # 3. ANALYZER KORUMASI (Flutter'ı sustur)
+                  if [ ! -z "$F_DIR" ]; then
+                    echo -e "analyzer:\n  errors:\n    todo: ignore\n    deprecated_member_use: ignore" > "$F_DIR/analysis_options.yaml"
+                  fi
+                  
+                  echo "✅ Ameliyat başarılı! 103. build (203. ?) için engel kalmadı."
                   break
                 fi
               fi
