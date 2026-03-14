@@ -212,44 +212,6 @@ jobs:
             done
           ) &
 
-          # 6. WEBVIEW & KERNEL AMELİYATI (KESİN ÇÖZÜM)
-          (
-            echo "🕵️ Ameliyat ekibi pusuda, paket bekleniyor..."
-            # 1. Aşama: Build başlamadan önce cache dizinini oluşturup paketi oraya zorla indirelim
-            flutter pub cache add webview_flutter_android --version 4.10.13 > /dev/null 2>&1
-            
-            while true; do
-              # Cache klasörünü doğrudan hedef al
-              TARGET_FILE=$(find /home/runner/.pub-cache/hosted/pub.dev/webview_flutter_android-4.10.13 -name "android_webview_controller.dart" 2>/dev/null | head -1)
-              
-              if [ ! -z "$TARGET_FILE" ] && [ -f "$TARGET_FILE" ]; then
-                echo "💉 Ameliyat başladı (Kernel Koruma Aktif): $TARGET_FILE"
-                
-                # 1. Metot değişikliği (toARGB32 -> value)
-                sed -i 's/color.toARGB32()/color.value/g' "$TARGET_FILE"
-                
-                # 2. Versiyon düşürme (Bütün klasördeki Dart dosyaları için)
-                WEB_DIR=$(dirname $(dirname $(dirname "$TARGET_FILE")))
-                find "$WEB_DIR" -name "*.dart" -exec sed -i 's/\/\/ @dart=.*/\/\/ @dart=3.3/g' {} +
-                find "$WEB_DIR" -name "*.dart" -exec sed -i 's/3.6/3.3/g' {} +
-                
-                # 3. Paketin kendi pubspec.yaml'ını yamala
-                if [ -f "$WEB_DIR/pubspec.yaml" ]; then
-                  sed -i 's/sdk: ">=3.[0-9]*/sdk: ">=3.3.0/g' "$WEB_DIR/pubspec.yaml"
-                  echo "✅ SDK ve Dart sürümleri 3.3'e çekildi."
-                fi
-                
-                # 4. Kernel Hatası Önleyici: Flutter önbelleğini bu paket için tazele
-                echo "🧹 Kernel Cache temizleniyor..."
-                rm -rf /home/runner/.pub-cache/_temp 2>/dev/null
-                
-                echo "✅ Ameliyat bitti! Kernel artık temiz dosyayı görecek."
-                break
-              fi
-              sleep 0.2
-            done
-          ) &
-
           # 7. FİNAL VURUŞ
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
