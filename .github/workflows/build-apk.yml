@@ -218,14 +218,29 @@ jobs:
             done
           ) &
 
-          # 7. FİNAL VURUŞ (FLUTTER 3.29 ZORLAMASIYLA)
-          # Flet'in kendi kafasına göre flutter indirmesini engellemek için PATH'i en başa alıyoruz
-          export PATH="$FLUTTER_ROOT/bin:$PATH"
-          
-          # Flet'e sistemdeki Flutter'ı kullanması gerektiğini hatırlatalım
-          flet build apk --verbose \
-            --build-number ${{ github.run_number }} \
-            --build-version "0.4.${{ github.run_number }}"
+          # 1. Flet'in indirme yaptığı dizini önceden biz oluşturalım
+              echo "🚧 Flet'in gizli yolunu kapatıyoruz..."
+              mkdir -p /home/runner/flutter
+              rm -rf /home/runner/flutter/3.27.3 # Eğer varsa temizle
+              
+              # 2. KRİTİK HAMLE: 3.29'u 3.27.3 klasörüymüş gibi gösterelim
+              # $FLUTTER_ROOT (3.29.3) -> /home/runner/flutter/3.27.3
+              ln -sf "$FLUTTER_ROOT" /home/runner/flutter/3.27.3
+              
+              # 3. Environment Variables (Flet'in aklını karıştıralım)
+              export FLUTTER_ROOT="$FLUTTER_ROOT"
+              export PATH="$FLUTTER_ROOT/bin:$PATH"
+              export FLET_CLI_SKIP_FLUTTER_DOCTOR=true
+              
+              # 4. Kontrol
+              echo "📍 Aktif Flutter Yolu:"
+              which flutter
+              flutter --version
+              
+              # 5. Gerçek Build
+              flet build apk --verbose \
+                --build-number ${{ github.run_number }} \
+                --build-version "0.4.${{ github.run_number }}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
