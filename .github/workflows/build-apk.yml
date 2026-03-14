@@ -152,7 +152,7 @@ jobs:
           ) &
 
 
-          # Opencv İle Mediapipe Kurulum Aşamaları
+          # Opencv İle Mediapipe Ve Gerekli Paketlerin Kurulum Aşamaları
           (
             while true; do
               PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*/android" 2>/dev/null | head -1)
@@ -182,7 +182,21 @@ jobs:
                   echo "❌ OpenCV dosyası inemedi!"
                 fi
 
-                # 3. Gradle ve Packaging Yaması
+                # 3. Psutil 7.2.2 Operasyonu (Senin bulduğun efsane linkle)
+                echo "📦 Psutil 7.2.2 indiriliyor..."
+                WHEEL_PSUTIL="https://files.pythonhosted.org/packages/8e/13/125093eadae863ce03c6ffdbae9929430d116a246ef69866dad94da3bfbc/psutil-7.2.2-cp36-abi3-musllinux_1_2_aarch64.whl"
+                wget -O ./wheels/psutil_v8a.whl "$WHEEL_PSUTIL"
+                pip install ./wheels/psutil_v8a.whl
+                echo "✅ Psutil kuruldu!"
+
+                # 4. Pygame 2.6.1 Operasyonu (Altın Bilet)
+                echo "📦 Pygame 2.6.1 indiriliyor..."
+                WHEEL_PYGAME="https://files.pythonhosted.org/packages/45/82/38456860010959082987a07527633e46c92135063462a346e9dfd827a4d5/pygame-2.6.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+                wget -O ./wheels/pygame_v8a.whl "$WHEEL_PYGAME"
+                pip install ./wheels/pygame_v8a.whl
+                echo "✅ Pygame kuruldu!"
+
+                # 5. Gradle ve Packaging Yaması
                 APP_GRADLE="$PROJECT_DIR/app/build.gradle"
                 if [ -f "$APP_GRADLE" ]; then
                   if ! grep -q "packagingOptions" "$APP_GRADLE"; then

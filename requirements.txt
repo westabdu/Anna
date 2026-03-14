@@ -2,7 +2,6 @@ flet==0.26.0
 SpeechRecognition
 gTTS
 edge-tts
-pygame
 pvporcupine
 sounddevice
 soundfile
@@ -11,5 +10,4 @@ groq
 pillow
 python-dotenv
 requests
-psutil
 googletrans
