@@ -137,43 +137,7 @@ jobs:
                   echo "❌ wakelock_plus 1.4.0 zorla silindi!"
                 fi
 
-                # 7. webview_flutter_android ve Sürüm Uyuşmazlığı Yaması
-          (
-            while true; do
-              FLUTTER_PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*" 2>/dev/null | head -1)
-              
-              if [ ! -z "$FLUTTER_PROJECT_DIR" ]; then
-                PUBSPEC_PATH="$FLUTTER_PROJECT_DIR/pubspec.yaml"
-                if [ -f "$PUBSPEC_PATH" ]; then
-                  echo "📝 pubspec.yaml düzenleniyor: $PUBSPEC_PATH"
-                  
-                  # webview_flutter_android'i 4.8.0'a sabitliyoruz (toARGB32 hatası olmayan sürüm)
-                  if grep -q "webview_flutter_android" "$PUBSPEC_PATH"; then
-                    sed -i 's/webview_flutter_android:.*/webview_flutter_android: 4.8.0/g' "$PUBSPEC_PATH"
-                    echo "✅ webview_flutter_android 4.8.0'a sabitlendi!"
-                  else
-                    # Eğer dependency_overrides yoksa ekle, varsa altına yaz
-                    if ! grep -q "dependency_overrides:" "$PUBSPEC_PATH"; then
-                      echo -e "\ndependency_overrides:\n  webview_flutter_android: 4.8.0" >> "$PUBSPEC_PATH"
-                    else
-                      sed -i '/dependency_overrides:/a \  webview_flutter_android: 4.8.0' "$PUBSPEC_PATH"
-                    fi
-                  fi
-
-                  # Flutter bağımlılıklarını temizle ve yeniden çek
-                  cd "$FLUTTER_PROJECT_DIR"
-                  echo "🚚 Flutter pub get çalıştırılıyor..."
-                  flutter pub upgrade --major-versions webview_flutter_android || flutter pub get
-                  cd -
-                  echo "🚀 Yamalar tamamlandı, döngüden çıkılıyor."
-                  break
-                fi
-              fi
-              sleep 2
-            done
-          ) &
-
-                # 7. libc++_shared.so'yu APK'ya eklemek için Gradle'ı yamala
+                # 6. libc++_shared.so'yu APK'ya eklemek için Gradle'ı yamala
                 if [ -f "$APP_GRADLE" ]; then
                   if ! grep -q "packagingOptions" "$APP_GRADLE"; then
                       sed -i '/android {/a \    packagingOptions {\n        pickFirsts = ["**/*.so"]\n        doNotStrip = ["**/*.so"]\n    }' "$APP_GRADLE"
@@ -188,7 +152,7 @@ jobs:
           ) &
 
 
-          # Opencv İle Mediapipe Ve Gerekli Paketlerin Kurulum Aşamaları
+          # 5. Opencv İle Mediapipe Ve Gerekli Paketlerin Kurulum Aşamaları
           (
             while true; do
               PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*/android" 2>/dev/null | head -1)
@@ -248,7 +212,49 @@ jobs:
             done
           ) &
 
-          # 5. FİNAL VURUŞ
+          # 6. webview_flutter_android Sürüm Sabitleme ve Yapılandırma (GÜÇLENDİRİLMİŞ)
+          (
+            while true; do
+              FLUTTER_PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*" 2>/dev/null | head -1)
+              
+              if [ ! -z "$FLUTTER_PROJECT_DIR" ]; then
+                echo "🔥 Flutter proje dizini bulundu: $FLUTTER_PROJECT_DIR"
+                PUBSPEC_PATH="$FLUTTER_PROJECT_DIR/pubspec.yaml"
+                
+                if [ -f "$PUBSPEC_PATH" ]; then
+                  echo "📝 pubspec.yaml düzenleniyor: $PUBSPEC_PATH"
+                  
+                  # 1. DEPENDENCY_OVERRIDES İLE SÜRÜM SABİTLEME
+                  if ! grep -q "dependency_overrides" "$PUBSPEC_PATH"; then
+                    echo -e "\ndependency_overrides:\n  webview_flutter_android: 4.8.0" >> "$PUBSPEC_PATH"
+                  else
+                    # dependency_overrides zaten varsa, altına sürümü ekle
+                    sed -i '/dependency_overrides:/a \  webview_flutter_android: 4.8.0' "$PUBSPEC_PATH"
+                  fi
+                  echo "✅ webview_flutter_android 4.8.0'a sabitlendi!"
+                  
+                  # 2. SDK KISITLAMASINI GÜNCELLE
+                  sed -i 's/sdk: .*/sdk: ">=3.0.0 <4.0.0"/g' "$PUBSPEC_PATH"
+                  
+                  # 3. BAĞIMLILIKLARI YENİDEN ÇEK
+                  cd "$FLUTTER_PROJECT_DIR"
+                  echo "🚚 Eski pubspec.lock temizleniyor..."
+                  rm -f pubspec.lock
+                  echo "🚚 Flutter pub get çalıştırılıyor..."
+                  flutter pub get
+                  cd -
+                  
+                  echo "🚀 webview_flutter_android yapılandırması tamamlandı!"
+                  break
+                else
+                  echo "⏳ pubspec.yaml henüz oluşturulmamış, bekleniyor..."
+                fi
+              fi
+              sleep 3
+            done
+          ) &
+
+          # 7. FİNAL VURUŞ
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "0.4.${{ github.run_number }}"
