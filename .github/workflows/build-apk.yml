@@ -255,39 +255,6 @@ jobs:
             done
           ) &
 
-          # 8. WEBVIEW PAKET AMELİYATI (GÜNCEL & AGRESİF VERSİYON)
-          (
-            while true; do
-              WEBVIEW_DIR=$(find /home/runner/.pub-cache/hosted/pub.dev -type d -name "webview_flutter_android-4.10.13" 2>/dev/null | head -1)
-              F_DIR=$(find /tmp -type d -path "*/flet_flutter_build*" 2>/dev/null | head -1)
-              
-              if [ ! -z "$WEBVIEW_DIR" ]; then
-                echo "💉 Ameliyat derinleşiyor: $WEBVIEW_DIR"
-                
-                # 1. HATALI METODU DÜZELT (Zaten yapmıştık ama garantileyelim)
-                find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/color.toARGB32()/color.value/g' {} +
-                
-                # 2. DİL VERSİYONUNU HER YERDE DÜŞÜR (EN ÖNEMLİ KISIM)
-                # Sadece yorum satırını değil, tüm sürüm ibarelerini 3.3'e çekiyoruz
-                find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/3.6/3.3/g' {} +
-                find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/3.5/3.3/g' {} +
-                # Dosyanın en başındaki o gıcık // @dart=... satırını yakala
-                find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/\/\/ @dart.*/\/\/ @dart=3.3/g' {} +
-                
-                echo "✅ Dart sürüm terörü sona erdi (3.3'e çekildi)!"
-
-                # 3. ANALYZER VE LINT SUSTURMA
-                if [ ! -z "$F_DIR" ]; then
-                  echo -e "analyzer:\n  errors:\n    version_less_than_required: ignore\n    obsolete_language_version: ignore" > "$F_DIR/analysis_options.yaml"
-                  echo "✅ Analyzer susturuldu!"
-                fi
-                
-                break
-              fi
-              sleep 2
-            done
-          ) &
-
           # 7. FİNAL VURUŞ
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
