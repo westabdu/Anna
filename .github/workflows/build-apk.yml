@@ -137,7 +137,31 @@ jobs:
                   echo "❌ wakelock_plus 1.4.0 zorla silindi!"
                 fi
 
-                # 6. libc++_shared.so'yu APK'ya eklemek için Gradle'ı yamala
+                # 7. webview_flutter_android ve Sürüm Uyuşmazlığı Yaması
+          echo "🔧 Flutter paket uyuşmazlığı kontrol ediliyor..."
+          FLUTTER_PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*" 2>/dev/null | head -1)
+          
+          if [ ! -z "$FLUTTER_PROJECT_DIR" ]; then
+            PUBSPEC_PATH="$FLUTTER_PROJECT_DIR/pubspec.yaml"
+            if [ -f "$PUBSPEC_PATH" ]; then
+              echo "📝 pubspec.yaml düzenleniyor: $PUBSPEC_PATH"
+              
+              # webview_flutter_android varsa sürümü sabitle veya güncelle
+              if grep -q "webview_flutter_android" "$PUBSPEC_PATH"; then
+                # Eğer hata devam ederse 4.10.0 yerine 4.8.0 deneyebilirsin (daha kararlı)
+                sed -i 's/webview_flutter_android:.*/webview_flutter_android: ^4.10.0/g' "$PUBSPEC_PATH"
+                echo "✅ webview_flutter_android sürücü yaması uygulandı!"
+              fi
+
+              # Flutter bağımlılıklarını temizle ve yeniden çek
+              cd "$FLUTTER_PROJECT_DIR"
+              echo "🚚 Flutter pub get çalıştırılıyor..."
+              flutter pub get
+              cd -
+            fi
+          fi
+
+                # 7. libc++_shared.so'yu APK'ya eklemek için Gradle'ı yamala
                 if [ -f "$APP_GRADLE" ]; then
                   if ! grep -q "packagingOptions" "$APP_GRADLE"; then
                       sed -i '/android {/a \    packagingOptions {\n        pickFirsts = ["**/*.so"]\n        doNotStrip = ["**/*.so"]\n    }' "$APP_GRADLE"
