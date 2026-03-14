@@ -212,45 +212,35 @@ jobs:
             done
           ) &
 
-          # 6. webview_flutter_android Sürüm Sabitleme ve Yapılandırma (GÜÇLENDİRİLMİŞ)
+          # 6. WebView ve Geolocator Sürüm Sabitleme (STRATEJİK MÜDAHALE)
           (
             while true; do
               FLUTTER_PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*" 2>/dev/null | head -1)
               
               if [ ! -z "$FLUTTER_PROJECT_DIR" ]; then
-                echo "🔥 Flutter proje dizini bulundu: $FLUTTER_PROJECT_DIR"
                 PUBSPEC_PATH="$FLUTTER_PROJECT_DIR/pubspec.yaml"
-                
                 if [ -f "$PUBSPEC_PATH" ]; then
-                  echo "📝 pubspec.yaml düzenleniyor: $PUBSPEC_PATH"
+                  echo "🎯 Sürüm uyuşmazlığı tespiti ve yama uygulanıyor..."
                   
-                  # 1. DEPENDENCY_OVERRIDES İLE SÜRÜM SABİTLEME
-                  if ! grep -q "dependency_overrides" "$PUBSPEC_PATH"; then
-                    echo -e "\ndependency_overrides:\n  webview_flutter_android: 4.8.0" >> "$PUBSPEC_PATH"
-                  else
-                    # dependency_overrides zaten varsa, altına sürümü ekle
-                    sed -i '/dependency_overrides:/a \  webview_flutter_android: 4.8.0' "$PUBSPEC_PATH"
-                  fi
-                  echo "✅ webview_flutter_android 4.8.0'a sabitlendi!"
+                  # 1. Mevcut overrides kısmını temizle
+                  sed -i '/dependency_overrides:/,$d' "$PUBSPEC_PATH"
                   
-                  # 2. SDK KISITLAMASINI GÜNCELLE
-                  sed -i 's/sdk: .*/sdk: ">=3.0.0 <4.0.0"/g' "$PUBSPEC_PATH"
+                  # 2. toARGB32 hatası vermeyen GÜVENLİ sürümleri dayat
+                  echo -e "\ndependency_overrides:\n  webview_flutter_android: 4.8.0\n  geolocator: 11.1.0\n  geolocator_android: 4.5.3" >> "$PUBSPEC_PATH"
                   
-                  # 3. BAĞIMLILIKLARI YENİDEN ÇEK
+                  # 3. SDK versiyonunu güvenli aralıkta tut (Dart 3.5.x seviyesi)
+                  sed -i 's/sdk: .*/sdk: ">=3.5.0 <4.0.0"/g' "$PUBSPEC_PATH"
+                  
+                  echo "✅ WebView ve Geolocator için güvenli limana çekildik!"
+                  
                   cd "$FLUTTER_PROJECT_DIR"
-                  echo "🚚 Eski pubspec.lock temizleniyor..."
                   rm -f pubspec.lock
-                  echo "🚚 Flutter pub get çalıştırılıyor..."
                   flutter pub get
                   cd -
-                  
-                  echo "🚀 webview_flutter_android yapılandırması tamamlandı!"
                   break
-                else
-                  echo "⏳ pubspec.yaml henüz oluşturulmamış, bekleniyor..."
                 fi
               fi
-              sleep 3
+              sleep 2
             done
           ) &
 
