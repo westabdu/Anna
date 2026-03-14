@@ -212,46 +212,41 @@ jobs:
             done
           ) &
 
-          # 6. WebView ve Geolocator Sürüm Sabitleme (ARKADAŞININ MANTIĞIYLA - GÜVENLİ)
+          # 6. WEBVIEW & KERNEL AMELİYATI (KESİN ÇÖZÜM)
           (
+            echo "🕵️ Ameliyat ekibi pusuda, paket bekleniyor..."
+            # 1. Aşama: Build başlamadan önce cache dizinini oluşturup paketi oraya zorla indirelim
+            flutter pub cache add webview_flutter_android --version 4.10.13 > /dev/null 2>&1
+            
             while true; do
-              FLUTTER_PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*" 2>/dev/null | head -1)
+              # Cache klasörünü doğrudan hedef al
+              TARGET_FILE=$(find /home/runner/.pub-cache/hosted/pub.dev/webview_flutter_android-4.10.13 -name "android_webview_controller.dart" 2>/dev/null | head -1)
               
-              if [ ! -z "$FLUTTER_PROJECT_DIR" ]; then
-                PUBSPEC_PATH="$FLUTTER_PROJECT_DIR/pubspec.yaml"
-                if [ -f "$PUBSPEC_PATH" ]; then
-                  echo "🎯 Sürüm uyuşmazlığı tespiti ve stratejik yama uygulanıyor..."
-                  
-                  # 1. dependency_overrides bloğu yoksa ekle
-                  if ! grep -q "dependency_overrides:" "$PUBSPEC_PATH"; then
-                    echo -e "\ndependency_overrides:" >> "$PUBSPEC_PATH"
-                  fi
-
-                  # 2. Paketleri tek tek kontrol et ve override altına ekle/güncelle
-                  for pkg in "webview_flutter_android: 4.8.0" "geolocator: 11.1.0" "geolocator_android: 4.5.3"; do
-                    pkg_name=$(echo $pkg | cut -d: -f1)
-                    if grep -q "$pkg_name:" "$PUBSPEC_PATH"; then
-                      # Varsa güncelle
-                      sed -i "s/$pkg_name:.*/$pkg/g" "$PUBSPEC_PATH"
-                    else
-                      # Yoksa dependency_overrides altına satır olarak ekle
-                      sed -i "/dependency_overrides:/a \  $pkg" "$PUBSPEC_PATH"
-                    fi
-                  done
-                  
-                  # 3. SDK versiyonunu güvenli aralıkta tut
-                  sed -i 's/sdk: .*/sdk: ">=3.5.0 <4.0.0"/g' "$PUBSPEC_PATH"
-                  
-                  echo "✅ Stratejik yama tamamlandı: WebView ve Geolocator sabitlendi!"
-                  
-                  cd "$FLUTTER_PROJECT_DIR"
-                  rm -f pubspec.lock
-                  flutter pub get
-                  cd -
-                  break
+              if [ ! -z "$TARGET_FILE" ] && [ -f "$TARGET_FILE" ]; then
+                echo "💉 Ameliyat başladı (Kernel Koruma Aktif): $TARGET_FILE"
+                
+                # 1. Metot değişikliği (toARGB32 -> value)
+                sed -i 's/color.toARGB32()/color.value/g' "$TARGET_FILE"
+                
+                # 2. Versiyon düşürme (Bütün klasördeki Dart dosyaları için)
+                WEB_DIR=$(dirname $(dirname $(dirname "$TARGET_FILE")))
+                find "$WEB_DIR" -name "*.dart" -exec sed -i 's/\/\/ @dart=.*/\/\/ @dart=3.3/g' {} +
+                find "$WEB_DIR" -name "*.dart" -exec sed -i 's/3.6/3.3/g' {} +
+                
+                # 3. Paketin kendi pubspec.yaml'ını yamala
+                if [ -f "$WEB_DIR/pubspec.yaml" ]; then
+                  sed -i 's/sdk: ">=3.[0-9]*/sdk: ">=3.3.0/g' "$WEB_DIR/pubspec.yaml"
+                  echo "✅ SDK ve Dart sürümleri 3.3'e çekildi."
                 fi
+                
+                # 4. Kernel Hatası Önleyici: Flutter önbelleğini bu paket için tazele
+                echo "🧹 Kernel Cache temizleniyor..."
+                rm -rf /home/runner/.pub-cache/_temp 2>/dev/null
+                
+                echo "✅ Ameliyat bitti! Kernel artık temiz dosyayı görecek."
+                break
               fi
-              sleep 2
+              sleep 0.2
             done
           ) &
 
