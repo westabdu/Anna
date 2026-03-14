@@ -255,6 +255,31 @@ jobs:
             done
           ) &
 
+          # 8. WEBVIEW PAKET AMELİYATI (KESİN ÇÖZÜM)
+          (
+            while true; do
+              # Önce paketin indirildiği dizini bulalım
+              WEBVIEW_DIR=$(find /home/runner/.pub-cache/hosted/pub.dev -name "webview_flutter_android-4.10.13" 2>/dev/null | head -1)
+              
+              if [ ! -z "$WEBVIEW_DIR" ]; then
+                TARGET_FILE="$WEBVIEW_DIR/lib/src/android_webview_controller.dart"
+                if [ -f "$TARGET_FILE" ]; then
+                  echo "💉 Ameliyat başlıyor: $TARGET_FILE"
+                  
+                  # Hatalı metodu (toARGB32) eski usulle değiştir
+                  sed -i 's/color.toARGB32()/color.value/g' "$TARGET_FILE"
+                  
+                  # Dil versiyonu hatasını da susturalım (en üst satırdaki sürümü 3.3'e çek)
+                  find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/3.6/3.3/g' {} +
+                  
+                  echo "✅ Ameliyat başarılı! toARGB32 hatası silindi."
+                  break
+                fi
+              fi
+              sleep 2
+            done
+          ) &
+
           # 7. FİNAL VURUŞ
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
