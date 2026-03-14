@@ -221,28 +221,21 @@ jobs:
           # 1. Flet'in indirme yaptığı dizini önceden biz oluşturalım
               echo "🔨 Flet'in inatçı damarını kesiyoruz..."
               
-              # 1. Flet'in gitmeye çalıştığı dizini tertemiz oluştur
+              # 1. Klasörleri oluştur
               mkdir -p /home/runner/flutter/3.27.3/bin
               
-              # 2. KRİTİK: Sembolik link yerine 'Wrapper' (Yönlendirici) yazalım
-              # Flet /home/runner/flutter/3.27.3/bin/flutter'ı çağırdığında 
-              # aslında bizim 3.29'u çalıştıracak.
+              # 2. Wrapper dosyalarını ECHO ile yaz (EOF hatası almamak için)
+              echo '#!/bin/bash' > /home/runner/flutter/3.27.3/bin/flutter
+              echo 'exec '"$FLUTTER_ROOT"'/bin/flutter "$@"' >> /home/runner/flutter/3.27.3/bin/flutter
               
-              cat > /home/runner/flutter/3.27.3/bin/flutter << EOF
-              #!/bin/bash
-              exec $FLUTTER_ROOT/bin/flutter "\$@"
-              EOF
-              
-              cat > /home/runner/flutter/3.27.3/bin/dart << EOF
-              #!/bin/bash
-              exec $FLUTTER_ROOT/bin/dart "\$@"
-              EOF
+              echo '#!/bin/bash' > /home/runner/flutter/3.27.3/bin/dart
+              echo 'exec '"$FLUTTER_ROOT"'/bin/dart "$@"' >> /home/runner/flutter/3.27.3/bin/dart
               
               # 3. Çalıştırma izinlerini ver
               chmod +x /home/runner/flutter/3.27.3/bin/flutter
               chmod +x /home/runner/flutter/3.27.3/bin/dart
               
-              # 4. Flet'in "yüklendi" sanması için bir işaret bırak (dummy file)
+              # 4. Flet'e "Zaten yüklü" süsü ver
               touch /home/runner/flutter/3.27.3/.complete
               
               # 5. Environment Variables
@@ -254,7 +247,8 @@ jobs:
               echo "🎯 Sahte 3.27.3 üzerinden çalışan gerçek sürüm:"
               /home/runner/flutter/3.27.3/bin/flutter --version
               
-              # 7. Gerçek Build
+              # 7. GERÇEK FLET BUILD (BURADA BAŞLIYOR)
+              echo "🚀 Flet Build APK başlatılıyor..."
               flet build apk --verbose \
                 --build-number ${{ github.run_number }} \
                 --build-version "0.4.${{ github.run_number }}"
