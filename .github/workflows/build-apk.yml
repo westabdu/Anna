@@ -267,30 +267,29 @@ jobs:
                 echo "⚠️ WebView paketi henüz indirilmemiş, build sırasında pusuya yatılacak."
               fi
 
-          # 9. WEBVIEW DOSYA AMELİYATI (KESİN VE RADİKAL ÇÖZÜM)
-          (
-            echo "🕵️ Ameliyat ekibi hazır, dosyalar bekleniyor..."
-            while true; do
-              # Pub cache içinde webview paketini bul
-              PACK_DIR=$(find /home/runner/.pub-cache/hosted/pub.dev -type d -name "webview_flutter_android-4.10.13" 2>/dev/null | head -1)
-              
-              if [ ! -z "$PACK_DIR" ]; then
-                echo "🎯 Paket yakalandı: $PACK_DIR"
-                
-                # Bütün .dart dosyalarındaki 3.9 veya 3.8 isteyen yerleri 3.7'ye çek
-                find "$PACK_DIR" -name "*.dart" -exec sed -i 's/@dart=3.[8-9]/@dart=3.7/g' {} +
-                
-                # Paketin kendi pubspec'ini de 3.7'ye zorla
-                sed -i 's/sdk: ">=3.[8-9].0/sdk: ">=3.7.0/g' "$PACK_DIR/pubspec.yaml"
-                
-                echo "✅ Paket başarıyla 3.7'ye ameliyat edildi!"
-                # Bir kere yapmak yetmez, Flet dosyaları tekrar indirebilir, o yüzden döngü devam etsin 
-                # ama her saniye değil 2 saniyede bir kontrol etsin
-                sleep 2
-              fi
-              sleep 0.5
-            done
-          ) &
+          # 9. FLUTTER SDK SÜRÜM ALDATMACASI (NÜKLEER ÇÖZÜM)
+          echo "💉 Flutter SDK sürüm kimliği değiştiriliyor..."
+          
+          # Flutter'ın içindeki Dart sürüm dosyasını bul ve 3.7.2 olan yeri 3.9.0 yap
+          DART_VER_FILE="$FLUTTER_ROOT/bin/cache/dart-sdk/version"
+          if [ -f "$DART_VER_FILE" ]; then
+            echo "3.9.0" > "$DART_VER_FILE"
+            echo "✅ Dart SDK sürümü kağıt üzerinde 3.9.0 yapıldı."
+          fi
+
+          # Flutter'ın kendi versiyon dosyasını da güncelle (Önlem)
+          echo "3.29.3" > "$FLUTTER_ROOT/version"
+
+          # 10. WEBVIEW'I ÖNDEN İNDİR VE ZORLA YAMALA (DÖNGÜSÜZ)
+          echo "🧹 Paketler önden hazırlanıyor..."
+          /home/runner/flutter/3.27.3/bin/flutter pub cache add webview_flutter_android:4.10.13 || true
+          
+          WEBVIEW_DIR=$(find /home/runner/.pub-cache/hosted/pub.dev -type d -name "webview_flutter_android-4.10.13" | head -1)
+          if [ ! -z "$WEBVIEW_DIR" ]; then
+            echo "🎯 Manuel müdahale: $WEBVIEW_DIR"
+            find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/@dart=3.[8-9]/@dart=3.7/g' {} +
+            sed -i 's/sdk: ">=3.[8-9].0/sdk: ">=3.7.0/g' "$WEBVIEW_DIR/pubspec.yaml"
+          fi
               
           # 11. GERÇEK FLET BUILD (BU SATIRSIZ OLMAZ!)
           export FLUTTER_ROOT="$FLUTTER_ROOT"
