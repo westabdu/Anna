@@ -7,7 +7,7 @@ authors = [
     { name = "westabdu", email = "westabdu@users.noreply.github.com" }
 ]
 dependencies = [
-    "flet==0.25.0",
+    "flet==0.24.1",
     "SpeechRecognition",
     "gTTS",
     "edge-tts",
