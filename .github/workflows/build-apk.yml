@@ -74,7 +74,7 @@ jobs:
       - name: Install Flet
         run: |
           python -m pip install --upgrade pip
-          pip install 'flet[all]==0.26.0'
+          pip install 'flet[all]==0.22.0'
 
       - name: Final Build (Wakelock - Eski Sürüm 1.2.8 - Numpy fix - Güncel Flet - KESİN)
         env:
@@ -217,89 +217,11 @@ jobs:
               sleep 2
             done
           ) &
-
-          # 8. Flet'in indirme yaptığı dizini önceden biz oluşturalım
-              echo "🔨 Flet'in inatçı damarını kesiyoruz..."
               
-              # 1. Klasörleri oluştur
-              mkdir -p /home/runner/flutter/3.27.3/bin
-              
-              # 2. Wrapper dosyalarını ECHO ile yaz (EOF hatası almamak için)
-              echo '#!/bin/bash' > /home/runner/flutter/3.27.3/bin/flutter
-              echo 'exec '"$FLUTTER_ROOT"'/bin/flutter "$@"' >> /home/runner/flutter/3.27.3/bin/flutter
-              
-              echo '#!/bin/bash' > /home/runner/flutter/3.27.3/bin/dart
-              echo 'exec '"$FLUTTER_ROOT"'/bin/dart "$@"' >> /home/runner/flutter/3.27.3/bin/dart
-              
-              # 3. Çalıştırma izinlerini ver
-              chmod +x /home/runner/flutter/3.27.3/bin/flutter
-              chmod +x /home/runner/flutter/3.27.3/bin/dart
-              
-              # 4. Flet'e "Zaten yüklü" süsü ver
-              touch /home/runner/flutter/3.27.3/.complete
-              
-              # 5. Environment Variables
-              export FLUTTER_ROOT="$FLUTTER_ROOT"
-              export PATH="$FLUTTER_ROOT/bin:$PATH"
-              export FLET_CLI_SKIP_FLUTTER_DOCTOR=true
-              
-              # 6. Kontrol
-              echo "🎯 Sahte 3.27.3 üzerinden çalışan gerçek sürüm:"
-              /home/runner/flutter/3.27.3/bin/flutter --version
-
-              # 7. WEBVIEW SÜRÜM TERÖRÜNÜ BİTİRME (EN GARANTİ YÖNTEM)
-              echo "💉 WebView paketi mühürleniyor..."
-              
-              # Sürüm belirtmeden ekle, en günceli hangisiyse o gelsin
-              /home/runner/flutter/3.27.3/bin/flutter pub cache add webview_flutter_android || true
-              
-              # pub-cache içinde webview_flutter_android olan klasörü bul (sürüm ne olursa olsun)
-              WEBVIEW_PATH=$(find /home/runner/.pub-cache/hosted/pub.dev -type d -name "webview_flutter_android-*" | sort -V | tail -1)
-              
-              if [ ! -z "$WEBVIEW_PATH" ]; then
-                echo "✅ Paket yolu tespit edildi: $WEBVIEW_PATH"
-                # Dosyaların içindeki 3.9 veya 3.8 isteyen yerleri 3.7'ye zorla
-                find "$WEBVIEW_PATH" -name "*.dart" -exec sed -i 's/@dart=3.[8-9]/@dart=3.7/g' {} +
-                # pubspec.yaml dosyasındaki sınırı 3.7.0'a çek
-                sed -i 's/sdk: ">=3.[8-9].0/sdk: ">=3.7.0/g' "$WEBVIEW_PATH/pubspec.yaml"
-                echo "✅ $WEBVIEW_PATH başarıyla 3.7'ye mühürlendi."
-              else
-                echo "⚠️ WebView paketi henüz indirilmemiş, build sırasında pusuya yatılacak."
-              fi
-
-          # 9. RADİKAL WEBVIEW PRANGALAMA
-          (
-            echo "🕵️ Derin pusu kuruldu..."
-            while true; do
-              # Flet'in derleme yaptığı klasörü ve içindeki pubspec'i bul
-              # Bu sefer daha geniş bir arama yapıyoruz
-              TARGET=$(find /home/runner/work -name "pubspec.yaml" 2>/dev/null | grep "flet_flutter_build" | head -1)
-              
-              if [ ! -z "$TARGET" ]; then
-                echo "🎯 Flet'in gizli dosyası yakalandı: $TARGET"
-                
-                # Sürümü 4.8.0'a mühürle
-                sed -i 's/webview_flutter_android: .*/webview_flutter_android: 4.8.0/g' "$TARGET"
-                
-                # Altına dependency_overrides ekle (en garanti yol bu)
-                if ! grep -q "dependency_overrides:" "$TARGET"; then
-                  echo -e "\ndependency_overrides:\n  webview_flutter_android: 4.8.0" >> "$TARGET"
-                fi
-                
-                rm -f "$(dirname "$TARGET")/pubspec.lock"
-                echo "✅ WebView 4.8.0 olarak mühürlendi!"
-                break
-              fi
-              sleep 0.5
-            done
-          ) &
-              
-          # 11. GERÇEK FLET BUILD (BU SATIRSIZ OLMAZ!)
+          # Sadece yolu temizle ve build'e bas
           export FLUTTER_ROOT="$FLUTTER_ROOT"
           export PATH="$FLUTTER_ROOT/bin:$PATH"
-          export FLET_CLI_SKIP_FLUTTER_DOCTOR=true
-          
-          echo "🚀 Flet Build APK başlatılıyor..."
+
           flet build apk --verbose \
             --build-number ${{ github.run_number }} \
             --build-version "0.4.${{ github.run_number }}"
