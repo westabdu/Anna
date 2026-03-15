@@ -267,29 +267,32 @@ jobs:
                 echo "⚠️ WebView paketi henüz indirilmemiş, build sırasında pusuya yatılacak."
               fi
 
-          # 9. FLUTTER SDK SÜRÜM ALDATMACASI (NÜKLEER ÇÖZÜM)
-          echo "💉 Flutter SDK sürüm kimliği değiştiriliyor..."
-          
-          # Flutter'ın içindeki Dart sürüm dosyasını bul ve 3.7.2 olan yeri 3.9.0 yap
-          DART_VER_FILE="$FLUTTER_ROOT/bin/cache/dart-sdk/version"
-          if [ -f "$DART_VER_FILE" ]; then
-            echo "3.9.0" > "$DART_VER_FILE"
-            echo "✅ Dart SDK sürümü kağıt üzerinde 3.9.0 yapıldı."
-          fi
-
-          # Flutter'ın kendi versiyon dosyasını da güncelle (Önlem)
-          echo "3.29.3" > "$FLUTTER_ROOT/version"
-
-          # 10. WEBVIEW'I ÖNDEN İNDİR VE ZORLA YAMALA (DÖNGÜSÜZ)
-          echo "🧹 Paketler önden hazırlanıyor..."
-          /home/runner/flutter/3.27.3/bin/flutter pub cache add webview_flutter_android:4.10.13 || true
-          
-          WEBVIEW_DIR=$(find /home/runner/.pub-cache/hosted/pub.dev -type d -name "webview_flutter_android-4.10.13" | head -1)
-          if [ ! -z "$WEBVIEW_DIR" ]; then
-            echo "🎯 Manuel müdahale: $WEBVIEW_DIR"
-            find "$WEBVIEW_DIR" -name "*.dart" -exec sed -i 's/@dart=3.[8-9]/@dart=3.7/g' {} +
-            sed -i 's/sdk: ">=3.[8-9].0/sdk: ">=3.7.0/g' "$WEBVIEW_DIR/pubspec.yaml"
-          fi
+          # 9. RADİKAL WEBVIEW PRANGALAMA
+          (
+            echo "🕵️ Derin pusu kuruldu..."
+            while true; do
+              # Flet'in derleme yaptığı klasörü ve içindeki pubspec'i bul
+              # Bu sefer daha geniş bir arama yapıyoruz
+              TARGET=$(find /home/runner/work -name "pubspec.yaml" 2>/dev/null | grep "flet_flutter_build" | head -1)
+              
+              if [ ! -z "$TARGET" ]; then
+                echo "🎯 Flet'in gizli dosyası yakalandı: $TARGET"
+                
+                # Sürümü 4.8.0'a mühürle
+                sed -i 's/webview_flutter_android: .*/webview_flutter_android: 4.8.0/g' "$TARGET"
+                
+                # Altına dependency_overrides ekle (en garanti yol bu)
+                if ! grep -q "dependency_overrides:" "$TARGET"; then
+                  echo -e "\ndependency_overrides:\n  webview_flutter_android: 4.8.0" >> "$TARGET"
+                fi
+                
+                rm -f "$(dirname "$TARGET")/pubspec.lock"
+                echo "✅ WebView 4.8.0 olarak mühürlendi!"
+                break
+              fi
+              sleep 0.5
+            done
+          ) &
               
           # 11. GERÇEK FLET BUILD (BU SATIRSIZ OLMAZ!)
           export FLUTTER_ROOT="$FLUTTER_ROOT"

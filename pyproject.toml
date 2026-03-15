@@ -8,6 +8,7 @@ authors = [
 ]
 dependencies = [
     "flet==0.26.0",
+    "flet-webview==0.21.0",
     "SpeechRecognition",
     "gTTS",
     "edge-tts",
