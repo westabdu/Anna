@@ -160,58 +160,48 @@ jobs:
 
           # 5. Opencv İle Mediapipe Ve Gerekli Paketlerin Kurulum Aşamaları
           (
+            ALREADY_DONE=false
+            echo "🕵️ Manylinux taburu pusuya yattı..."
             while true; do
               PROJECT_DIR=$(find /tmp -type d -path "*/flet_flutter_build*/android" 2>/dev/null | head -1)
               
-              if [ ! -z "$PROJECT_DIR" ]; then
+              if [ ! -z "$PROJECT_DIR" ] && [ "$ALREADY_DONE" = false ]; then
                 echo "🔥 Proje dizini bulundu: $PROJECT_DIR"
-                
-                # 0. Klasörü Hazırla (En Önemli Kısım)
                 mkdir -p ./wheels
-                echo "📁 Wheels klasörü hazırlandı."
+                
+                # 1. MediaPipe (0.10.18)
+                WHEEL_MP="https://files.pythonhosted.org/packages/b9/02/72c08793078a632128b0f3408792015242490515668e7ec89304210d70ce/mediapipe-0.10.18-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+                
+                # 2. OpenCV 4.10.0 (ABI3 Manylinux - En Uyumlusu)
+                WHEEL_CV="https://files.pythonhosted.org/packages/93/93/96f3008064ef3f2b18991a0c4f80998c0d11822c9748b813158f967f6312/opencv_python-4.10.0.84-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+                
+                # 3. Psutil 7.2.2 (Manylinux ARM64)
+                WHEEL_PSUTIL="https://files.pythonhosted.org/packages/60/a0/03f0b2405d590409da678a946e3867623a851e44f8045f206263b8277685/psutil-7.2.2-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
 
-                # 1. MediaPipe 0.10.18 Operasyonu
-                echo "📦 MediaPipe 0.10.18 indiriliyor..."
-                WHEEL_MP="https://storage.googleapis.com/mediapipe-bin/wheels/mediapipe-0.10.18-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
-                wget -O ./wheels/mediapipe_v8a.whl "$WHEEL_MP"
-                pip install ./wheels/mediapipe_v8a.whl
-                echo "✅ MediaPipe kuruldu!"
-
-                # 2. OpenCV 4.10.0 Operasyonu (Yeni Bypass)
-                echo "📦 OpenCV 4.10.0 indiriliyor..."
-                WHEEL_CV="https://pypi.flet.dev/packages/opencv-python-headless/opencv_python_headless-4.10.0.84-cp312-cp312-android_24_arm64_v8a.whl"
-                wget -O ./wheels/opencv_android.whl "$WHEEL_CV"
-                if [ -f "./wheels/opencv_android.whl" ]; then
-                  pip install ./wheels/opencv_android.whl
-                  echo "✅ OpenCV kuruldu!"
-                else
-                  echo "❌ OpenCV dosyası inemedi!"
-                fi
-
-                # 3. Psutil 7.2.2 Operasyonu (Senin bulduğun efsane linkle)
-                echo "📦 Psutil 7.2.2 indiriliyor..."
-                WHEEL_PSUTIL="https://files.pythonhosted.org/packages/8e/13/125093eadae863ce03c6ffdbae9929430d116a246ef69866dad94da3bfbc/psutil-7.2.2-cp36-abi3-musllinux_1_2_aarch64.whl"
-                wget -O ./wheels/psutil_v8a.whl "$WHEEL_PSUTIL"
-                pip install ./wheels/psutil_v8a.whl
-                echo "✅ Psutil kuruldu!"
-
-                # 4. Pygame 2.6.1 Operasyonu (Altın Bilet)
-                echo "📦 Pygame 2.6.1 indiriliyor..."
+                # 4. Pygame 2.6.1
                 WHEEL_PYGAME="https://files.pythonhosted.org/packages/45/82/38456860010959082987a07527633e46c92135063462a346e9dfd827a4d5/pygame-2.6.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
-                wget -O ./wheels/pygame_v8a.whl "$WHEEL_PYGAME"
-                pip install ./wheels/pygame_v8a.whl
-                echo "✅ Pygame kuruldu!"
 
-                # 5. Gradle ve Packaging Yaması
+                # 5. Numpy 1.26.4
+                WHEEL_NUMPY="https://files.pythonhosted.org/packages/db/57/0268448651884328e18ec3391d374ec78280f5f84813583151b03372f854/numpy-1.26.4-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+
+                echo "📥 Paketler indiriliyor..."
+                wget -q -O ./wheels/mp.whl "$WHEEL_MP"
+                wget -q -O ./wheels/cv.whl "$WHEEL_CV"
+                wget -q -O ./wheels/ps.whl "$WHEEL_PSUTIL"
+                wget -q -O ./wheels/pg.whl "$WHEEL_PYGAME"
+                wget -q -O ./wheels/np.whl "$WHEEL_NUMPY"
+
+                echo "💉 Kurulum başlıyor..."
+                pip install ./wheels/*.whl --force-reinstall
+                
+                # Gradle Packaging Ayarı
                 APP_GRADLE="$PROJECT_DIR/app/build.gradle"
                 if [ -f "$APP_GRADLE" ]; then
-                  if ! grep -q "packagingOptions" "$APP_GRADLE"; then
-                    sed -i '/android {/a \    packagingOptions {\n        pickFirsts = ["**/*.so"]\n        doNotStrip = ["**/*.so"]\n    }' "$APP_GRADLE"
-                    echo "✅ packagingOptions eklendi!"
-                  fi
+                  sed -i '/android {/a \    packagingOptions {\n        pickFirsts = ["**/*.so"]\n        doNotStrip = ["**/*.so"]\n    }' "$APP_GRADLE"
                 fi
-                
-                echo "🚀 Tüm bypass operasyonları başarıyla tamamlandı, build devam ediyor..."
+
+                echo "🚀 Bypass tamamlandı! ANNA hazır sayılır."
+                ALREADY_DONE=true
                 break
               fi
               sleep 2
