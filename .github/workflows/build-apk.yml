@@ -173,7 +173,7 @@ jobs:
                 WHEEL_MP="https://files.pythonhosted.org/packages/b9/02/72c08793078a632128b0f3408792015242490515668e7ec89304210d70ce/mediapipe-0.10.18-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
                 
                 # 2. OpenCV 4.10.0 (ABI3 Manylinux - En Uyumlusu)
-                WHEEL_CV="https://files.pythonhosted.org/packages/93/93/96f3008064ef3f2b18991a0c4f80998c0d11822c9748b813158f967f6312/opencv_python-4.10.0.84-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+                WHEEL_CV="https://pypi.flet.dev/packages/opencv-python-headless/opencv_python_headless-4.10.0.84-cp312-cp312-android_24_arm64_v8a.whl"
                 
                 # 3. Psutil 7.2.2 (Manylinux ARM64)
                 WHEEL_PSUTIL="https://files.pythonhosted.org/packages/60/a0/03f0b2405d590409da678a946e3867623a851e44f8045f206263b8277685/psutil-7.2.2-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
@@ -182,7 +182,7 @@ jobs:
                 WHEEL_PYGAME="https://files.pythonhosted.org/packages/45/82/38456860010959082987a07527633e46c92135063462a346e9dfd827a4d5/pygame-2.6.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
 
                 # 5. Numpy 1.26.4
-                WHEEL_NUMPY="https://files.pythonhosted.org/packages/db/57/0268448651884328e18ec3391d374ec78280f5f84813583151b03372f854/numpy-1.26.4-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+                WHEEL_NUMPY="https://pypi.flet.dev/packages/numpy/numpy-2.1.1-cp312-cp312-android_24_arm64_v8a.whl"
 
                 echo "📥 Paketler indiriliyor..."
                 wget -q -O ./wheels/mp.whl "$WHEEL_MP"
