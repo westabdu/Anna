@@ -288,41 +288,40 @@ jobs:
             done
           ) &
 
-          # 10. WEBVIEW 4.8.0 SABİTLEME - NİHAİ ÇÖZÜM
+          # 10. WEBVIEW KESİN ÇÖZÜM (HATA VERMEYEN SCRIPT)
           (
-            echo "🕵️ İmparator Pusu (DeepSeek Edition) kuruldu..."
-            
-            # Flet'in oluşturduğu geçici pubspec.yaml dosyasını bulana kadar bekle
+            echo "🕵️ Pusu kuruldu, Flet'in geçici dosyaları bekleniyor..."
             while true; do
-              PUBSPEC=$(find /tmp -name "pubspec.yaml" 2>/dev/null | grep "flet_flutter_build" | head -1)
+              # Flet'in oluşturduğu geçici pubspec.yaml dosyasını bul
+              TARGET_PUBSPEC=$(find /tmp -name "pubspec.yaml" 2>/dev/null | grep "flet_flutter_build" | head -1)
               
-              if [ ! -z "$PUBSPEC" ]; then
-                echo "🎯 Geçici pubspec yakalandı: $PUBSPEC"
+              if [ ! -z "$TARGET_PUBSPEC" ]; then
+                echo "🎯 Geçici pubspec yakalandı: $TARGET_PUBSPEC"
                 
-                # Önce eski satırları (varsa) temizle ve override bloğunu enjekte et
-                echo "" >> "$PUBSPEC"
-                echo "dependency_overrides:" >> "$PUBSPEC"
-                echo "  webview_flutter_android: 4.8.0" >> "$PUBSPEC"
-                echo "  webview_flutter: 4.8.0" >> "$PUBSPEC"
+                # pubspec içindeki webview sürümünü direkt 4.8.0 yapalım (Override yerine direkt değişim)
+                # Bu yöntem "Package not found" hatasını engeller
+                sed -i 's/webview_flutter_android: .*/webview_flutter_android: 4.8.0/g' "$TARGET_PUBSPEC"
                 
-                # Varsa lock dosyasını sil ki yeni sürümü çekmeye zorlansın
-                LOCKFILE=$(dirname "$PUBSPEC")/pubspec.lock
-                if [ -f "$LOCKFILE" ]; then
-                  rm "$LOCKFILE"
-                  echo "🗑️ pubspec.lock temizlendi."
+                # Eğer pubspec içinde 'dependency_overrides' yoksa ekleyelim (ikinci sigorta)
+                if ! grep -q "dependency_overrides:" "$TARGET_PUBSPEC"; then
+                  echo "" >> "$TARGET_PUBSPEC"
+                  echo "dependency_overrides:" >> "$TARGET_PUBSPEC"
+                  echo "  webview_flutter_android: 4.8.0" >> "$TARGET_PUBSPEC"
                 fi
                 
-                echo "✅ WebView 4.8.0 zorlaması başarıyla enjekte edildi!"
+                # Lock dosyasını siliyoruz ki 4.10.13'e gitmesin
+                rm -f "$(dirname "$TARGET_PUBSPEC")/pubspec.lock"
+                
+                echo "✅ WebView 4.8.0 zorlaması pubspec içine mühürlendi!"
                 break
               fi
               sleep 0.5
             done
           ) &
 
-          # 11. ÖN TEMİZLİK (CACHELERİ BOŞALT)
-          echo "🧹 Mevcut sorunlu paketler temizleniyor..."
+          # 11. MANUEL TEMİZLİK VE ZORLAMA
+          echo "🧹 Paket cache temizleniyor..."
           rm -rf /home/runner/.pub-cache/hosted/pub.dev/webview_flutter_android-*
-          /home/runner/flutter/3.27.3/bin/flutter pub cache add webview_flutter_android:4.8.0 || true
 
           # 11. GERÇEK FLET BUILD (BU SATIRSIZ OLMAZ!)
           export FLUTTER_ROOT="$FLUTTER_ROOT"
