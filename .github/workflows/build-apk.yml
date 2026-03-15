@@ -267,29 +267,26 @@ jobs:
                 echo "⚠️ WebView paketi henüz indirilmemiş, build sırasında pusuya yatılacak."
               fi
 
-              # 9. WEBVIEW NİHAİ PUSU (TEK VE GARANTİ)
+          # 9. WEBVIEW DOSYA AMELİYATI (KESİN VE RADİKAL ÇÖZÜM)
           (
-            echo "🕵️ Pusu kuruldu, hedef bekleniyor..."
+            echo "🕵️ Ameliyat ekibi hazır, dosyalar bekleniyor..."
             while true; do
-              # Flet'in oluşturduğu geçici pubspec'i bul (Türkçe karakter yok!)
-              TARGET_FILE=$(find /tmp -name "pubspec.yaml" 2>/dev/null | grep "flet_flutter_build" | head -1)
+              # Pub cache içinde webview paketini bul
+              PACK_DIR=$(find /home/runner/.pub-cache/hosted/pub.dev -type d -name "webview_flutter_android-4.10.13" 2>/dev/null | head -1)
               
-              if [ ! -z "$TARGET_FILE" ]; then
-                echo "🎯 Hedef yakalandı: $TARGET_FILE"
+              if [ ! -z "$PACK_DIR" ]; then
+                echo "🎯 Paket yakalandı: $PACK_DIR"
                 
-                # 1. Sürümü 4.8.0'a çek
-                sed -i 's/webview_flutter_android: .*/webview_flutter_android: 4.8.0/g' "$TARGET_FILE"
+                # Bütün .dart dosyalarındaki 3.9 veya 3.8 isteyen yerleri 3.7'ye çek
+                find "$PACK_DIR" -name "*.dart" -exec sed -i 's/@dart=3.[8-9]/@dart=3.7/g' {} +
                 
-                # 2. Dependency override ekle (Sigorta)
-                if ! grep -q "dependency_overrides:" "$TARGET_FILE"; then
-                  echo -e "\ndependency_overrides:\n  webview_flutter_android: 4.8.0" >> "$TARGET_FILE"
-                fi
+                # Paketin kendi pubspec'ini de 3.7'ye zorla
+                sed -i 's/sdk: ">=3.[8-9].0/sdk: ">=3.7.0/g' "$PACK_DIR/pubspec.yaml"
                 
-                # 3. Lock dosyasını sil
-                rm -f "$(dirname "$TARGET_FILE")/pubspec.lock"
-                
-                echo "✅ WebView 4.8.0 mühürlendi."
-                break
+                echo "✅ Paket başarıyla 3.7'ye ameliyat edildi!"
+                # Bir kere yapmak yetmez, Flet dosyaları tekrar indirebilir, o yüzden döngü devam etsin 
+                # ama her saniye değil 2 saniyede bir kontrol etsin
+                sleep 2
               fi
               sleep 0.5
             done
