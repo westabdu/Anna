@@ -172,7 +172,7 @@ jobs:
 
                 # 1. MediaPipe 0.10.18 Operasyonu
                 echo "📦 MediaPipe 0.10.18 indiriliyor..."
-                WHEEL_MP="https://files.pythonhosted.org/packages/db/57/0268448651884328e18ec3391d374ec78280f5f84813583151b03372f854/mediapipe-0.10.18-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+                WHEEL_MP="https://storage.googleapis.com/mediapipe-bin/wheels/mediapipe-0.10.18-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
                 wget -O ./wheels/mediapipe_v8a.whl "$WHEEL_MP"
                 pip install ./wheels/mediapipe_v8a.whl
                 echo "✅ MediaPipe kuruldu!"
